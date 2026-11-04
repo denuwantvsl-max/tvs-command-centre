@@ -195,6 +195,13 @@ main { padding: 0 16px 120px; }
 .msg.error { align-self: center; background: var(--red-bg); color: var(--red); font-size: 13px; }
 .msg .acts { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
 .msg .acts a { font-size: 13px; text-decoration: none; background: var(--brand-50); color: var(--brand); border: 1px solid var(--brand-100); padding: 4px 10px; border-radius: 8px; font-weight: 600; }
+.cf { margin-top: 10px; border: 1.5px solid #fcd34d; background: var(--orange-bg); border-radius: 12px; padding: 10px 12px; }
+.cf-h { font-size: 12px; font-weight: 800; color: var(--orange); text-transform: uppercase; letter-spacing: .4px; }
+.cf-p { white-space: pre-wrap; font-size: 13.5px; margin: 6px 0 8px; color: var(--ink-2); }
+.cf-btns { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.cf-btns .btn { padding: 8px 16px; }
+.cf-res { font-size: 13.5px; font-weight: 600; color: var(--muted); width: 100%; }
+.cf-res.ok { color: var(--green); } .cf-res.err { color: var(--red); margin-bottom: 4px; }
 .typing { align-self: flex-start; display: flex; gap: 4px; padding: 12px 14px; background: #fff; border: 1px solid var(--line); border-radius: 14px; }
 .typing i { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); animation: blink 1.2s infinite; }
 .typing i:nth-child(2) { animation-delay: .2s; } .typing i:nth-child(3) { animation-delay: .4s; }
@@ -678,8 +685,42 @@ function msgHtml(m) {
   if (m.role === 'error') return '<div class="msg error">' + esc(m.text) + '</div>';
   var acts = (m.actions || []).filter(function (a) { return a.type === 'open'; })
     .map(function (a) { return '<a href="' + esc(a.url) + '" target="_blank" rel="noopener">Open ' + esc(a.name) + ' ↗</a>'; }).join('');
-  return '<div class="msg assistant">' + md(m.text) + (acts ? '<div class="acts">' + acts + '</div>' : '') + '</div>';
+  var confirms = (m.actions || []).filter(function (a) { return a.type === 'confirm'; }).map(function (a) {
+    var foot = a.state === 'done' ? '<div class="cf-res ok">' + esc(a.result) + '</div>'
+      : a.state === 'cancelled' ? '<div class="cf-res">Cancelled - nothing was changed.</div>'
+      : a.state === 'busy' ? '<div class="cf-res">Saving…</div>'
+      : '<div class="cf-btns">' + (a.error ? '<div class="cf-res err">' + esc(a.error) + '</div>' : '') +
+        '<button class="btn" data-cf="yes" data-id="' + esc(a.id) + '">Confirm</button><button class="btn ghost" data-cf="no" data-id="' + esc(a.id) + '">Cancel</button></div>';
+    return '<div class="cf"><div class="cf-h">Change waiting for your OK</div><div class="cf-p">' + esc(a.preview) + '</div>' + foot + '</div>';
+  }).join('');
+  return '<div class="msg assistant">' + md(m.text) + (acts ? '<div class="acts">' + acts + '</div>' : '') + confirms + '</div>';
 }
+function findConfirm(id) {
+  for (var i = state.chat.length - 1; i >= 0; i--) {
+    var a = (state.chat[i].actions || []).filter(function (x) { return x.type === 'confirm' && x.id === id; })[0];
+    if (a) return a;
+  }
+  return null;
+}
+function openConfirms() {
+  var out = [];
+  state.chat.forEach(function (m) { (m.actions || []).forEach(function (a) { if (a.type === 'confirm' && !a.state) out.push(a); }); });
+  return out;
+}
+function answerConfirm(id, yes) {
+  var a = findConfirm(id); if (!a || a.state) return;
+  a.state = yes ? 'busy' : 'cancelled'; a.error = ''; renderChat();
+  if (!yes) { api('cancelAction', { id: id }).catch(function () {}); return; }
+  api('confirmAction', { id: id }).then(function (r) {
+    a.state = 'done'; a.result = r.text; renderChat();
+    if (state.speak) say(r.text);
+    api('log', { days: 3 }).then(function (l) { state.log = l; renderLog(); });
+  }).catch(function (err) { a.state = ''; a.error = err.message; renderChat(); });
+}
+$('msgs').addEventListener('click', function (e) {
+  var b = e.target.closest('[data-cf]'); if (!b) return;
+  answerConfirm(b.dataset.id, b.dataset.cf === 'yes');
+});
 $('msgs').addEventListener('submit', function (e) {
   if (e.target.id !== 'keyForm') return;
   e.preventDefault();
@@ -695,6 +736,10 @@ function ask(text) {
   text = String(text || '').trim();
   if (!text || state.busy) return;
   openChat();
+  // "yes" / "no" with exactly one change waiting answers that change directly (no AI round trip)
+  var waiting = openConfirms();
+  if (waiting.length === 1 && /^(yes|y|ok|okay|confirm|go ahead|do it|yes please)[.! ]*$/i.test(text)) { answerConfirm(waiting[0].id, true); return; }
+  if (waiting.length === 1 && /^(no|n|cancel|stop|don'?t)[.! ]*$/i.test(text)) { answerConfirm(waiting[0].id, false); return; }
   state.busy = true;
   state.chat.push({ role: 'user', text: text });
   renderChat();
@@ -865,6 +910,11 @@ var Demo = (function () {
     if (lg) { log.unshift({ id: 'L000' + (m++), when: new Date().toISOString(), text: q.replace(/^log( that)?\s*/i, ''), system: 'Other', source: 'assistant' }); r.reply = 'Logged it.'; r.changed.log = true; return r; }
     var op = s.match(/open (mis|cmms|carder|spark|sales|claude)/);
     if (op) { var a = APPS.filter(function (x) { return x.name.toLowerCase().indexOf(op[1]) >= 0 || x.short.toLowerCase() === op[1]; })[0] || APPS[0]; r.actions.push({ type: 'open', url: a.url, name: a.name }); r.reply = 'Opening ' + a.name + '.'; return r; }
+    if (/approve|assign/.test(s)) {
+      r.reply = 'Boss, here is the change. Tap **Confirm** to save it.';
+      r.actions.push({ type: 'confirm', id: 'PDEMO' + (n++), preview: 'CMMS job WO-0133 (NEW, General)\nStores rack light not working\n\n→ Approve and assign to Hirushan' });
+      return r;
+    }
     if (/production/.test(s)) { r.reply = 'Yesterday the plant built **318 units**, 94% of the 338 plan (demo figures).\n- 2W SKD 241 of 250\n- 3W 52 of 58\n- CKD 25 of 30\nCKD batch 2 inspection is in 3 days with 68 still to build.'; return r; }
     if (/attention|today|urgent/.test(s)) { r.reply = 'Three things need you today (demo):\n- **Paint shop conveyor** breakdown is stopping production (WO-0131).\n- **2 CMMS requests** are waiting for your approval.\n- **3W attendance** was 88%, the lowest section; you have a to-do to follow up with Malindu.'; return r; }
     r.reply = 'This is demo mode, so I can only answer a few sample questions. Once the Claude API key is set, I will answer anything from your live systems.';
@@ -888,6 +938,8 @@ var Demo = (function () {
         case 'logRemove': log = log.filter(function (y) { return y.id !== p.id; }); return wait(true);
         case 'chat': return wait(reply(p.message), 1100);
         case 'chatClear': chat = []; return wait(true);
+        case 'confirmAction': return wait({ text: '✅ WO-0133 is now ASSIGNED (assigned to Hirushan). (demo)' }, 900);
+        case 'cancelAction': return wait(true);
         case 'logout': return wait(true);
         default: return wait(null);
       }
