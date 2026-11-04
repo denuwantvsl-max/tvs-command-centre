@@ -246,11 +246,11 @@ main { padding: 0 16px 120px; }
   <form class="login-card hidden" id="setupForm" autocomplete="off">
     <img src="img/tvs-logo.png" alt="TVS">
     <h1>First-time setup</h1>
-    <div class="muted">Choose your PIN and add your Claude API key. You only do this once.</div>
+    <div class="muted">Choose your PIN. You only do this once.</div>
     <input id="newPin" type="password" inputmode="numeric" maxlength="12" placeholder="New PIN (4-12 digits)" aria-label="New PIN" style="font-size:18px;letter-spacing:4px">
     <input id="newPin2" type="password" inputmode="numeric" maxlength="12" placeholder="Same PIN again" aria-label="Repeat PIN" style="font-size:18px;letter-spacing:4px;margin-top:10px">
-    <input id="apiKey" type="password" placeholder="Claude API key (sk-ant-…)" aria-label="Claude API key" style="font-size:14px;letter-spacing:0;text-align:left;margin-top:10px">
-    <div class="muted" style="font-size:12px;margin-top:6px;text-align:left">Get the key at console.anthropic.com → API keys. You can leave it empty and add it later.</div>
+    <input id="apiKey" type="password" placeholder="Free Gemini key (optional)" aria-label="Gemini API key" style="font-size:14px;letter-spacing:0;text-align:left;margin-top:10px">
+    <div class="muted" style="font-size:12px;margin-top:6px;text-align:left">For the assistant. Free from aistudio.google.com → Get API key. You can leave it empty and add it later inside the page.</div>
     <button class="btn block" id="setupBtn">Save and open</button>
     <div class="err" id="setupErr"></div>
   </form>
@@ -454,7 +454,8 @@ function boot() {
   showApp(); renderStatic();
   api('home').then(function (h) {
     state.feed = h.feed; state.todos = h.todos; state.log = h.log; state.chat = h.chat || [];
-    if (!h.aiReady) $('aiState').textContent = 'Claude API key not set yet';
+    state.aiReady = h.aiReady;
+    $('aiState').textContent = !h.aiReady ? 'Add a free AI key to start' : h.aiReady === 'claude' ? 'Claude · knows your plant and your work' : 'Gemini (free) · knows your plant and your work';
     renderAll();
   }).catch(function (err) { toast(err.message); $('feed').innerHTML = '<div class="empty">' + esc(err.message) + '</div>'; });
 }
@@ -657,6 +658,12 @@ $('chatClear').addEventListener('click', function () {
 });
 
 function renderChat() {
+  if (!DEMO && !state.aiReady) {
+    $('msgs').innerHTML = '<div class="welcome"><b>Add your free AI key</b><br>1. Open <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a> (sign in with Google).<br>' +
+      '2. Click <b>Create API key</b> and copy it.<br>3. Paste it here. It is free: no card needed.' +
+      '<form id="keyForm" class="add-row" style="padding:12px 0 0"><input type="text" id="keyInput" placeholder="Paste key (starts with AIza or AQ.)" autocomplete="off" style="-webkit-text-security:disc"><button class="btn">Save key</button></form></div>';
+    return;
+  }
   if (!state.chat.length) {
     $('msgs').innerHTML = '<div class="welcome"><b>Hi Denuwan.</b><br>Ask about production, delivery, maintenance, attendance or SPARK.<br>' +
       'Tell me what you did and I’ll log it. Say “remind me to…” and I’ll add a to-do.<br>Say “open CMMS” and I’ll open it.</div>';
@@ -672,6 +679,15 @@ function msgHtml(m) {
     .map(function (a) { return '<a href="' + esc(a.url) + '" target="_blank" rel="noopener">Open ' + esc(a.name) + ' ↗</a>'; }).join('');
   return '<div class="msg assistant">' + md(m.text) + (acts ? '<div class="acts">' + acts + '</div>' : '') + '</div>';
 }
+$('msgs').addEventListener('submit', function (e) {
+  if (e.target.id !== 'keyForm') return;
+  e.preventDefault();
+  var key = $('keyInput').value.trim(); if (!key) return;
+  api('setAiKey', { key: key }).then(function (prov) {
+    state.aiReady = prov; $('aiState').textContent = (prov === 'claude' ? 'Claude' : 'Gemini (free)') + ' · knows your plant and your work';
+    renderChat(); toast('Key saved. Ask me anything.');
+  }).catch(function (err) { toast(err.message); });
+});
 function scrollMsgs() { var m = $('msgs'); m.scrollTop = m.scrollHeight; }
 
 function ask(text) {
