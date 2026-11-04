@@ -349,6 +349,7 @@ main { padding: 0 16px 120px; }
     <div class="chat-tools">
       <button class="toggle" id="speakToggle" title="Read answers aloud">🔊 Speak answers</button>
       <button class="toggle" id="langToggle" title="Voice input language">🎙 English</button>
+      <button class="toggle" id="voiceBtn" title="Tap to hear the next voice">🗣 Voice</button>
     </div>
     <form class="chat-f" id="chatForm">
       <textarea id="chatInput" rows="1" placeholder="Message…" aria-label="Message"></textarea>
@@ -742,11 +743,37 @@ function listen(target, micBtn) {
 }
 $('micBtn').addEventListener('click', function () { listen($('askInput'), $('micBtn')); });
 $('micBtn2').addEventListener('click', function () { listen($('chatInput'), $('micBtn2')); });
+/* Voices: English voices on this device, likely-female ones first. The Voice button steps through them. */
+var FEMALE = /female|woman|zira|hazel|susan|samantha|karen|moira|tessa|veena|serena|fiona|libby|sonia|natasha|aria|jenny|emma|ava|allison|victoria|kate|heera|neerja|catherine/i;
+var voices = [];
+function loadVoices() {
+  if (!window.speechSynthesis) return;
+  voices = speechSynthesis.getVoices().filter(function (v) { return /^en/i.test(v.lang); })
+    .sort(function (a, b) { return (FEMALE.test(b.name) - FEMALE.test(a.name)) || (/GB|IN|AU/.test(b.lang) - /GB|IN|AU/.test(a.lang)); });
+  renderVoiceBtn();
+}
+function currentVoice() {
+  var name = store.get('tvsCmdVoice');
+  return voices.filter(function (v) { return v.name === name; })[0] || voices[0] || null;
+}
+function renderVoiceBtn() {
+  var v = currentVoice();
+  $('voiceBtn').textContent = '🗣 ' + (v ? v.name.replace(/^(Microsoft|Google)\s+/, '').replace(/\s*\(.*\)$/, '').slice(0, 22) + ' (' + (voices.indexOf(v) + 1) + '/' + voices.length + ')' : 'Voice');
+}
+if (window.speechSynthesis) { loadVoices(); speechSynthesis.onvoiceschanged = loadVoices; }
+$('voiceBtn').addEventListener('click', function () {
+  if (!voices.length) { loadVoices(); if (!voices.length) return toast('No voices found on this device'); }
+  var next = voices[(voices.indexOf(currentVoice()) + 1) % voices.length];
+  store.set('tvsCmdVoice', next.name); renderVoiceBtn();
+  say('Hello Boss, this is my voice. Do you like it?');
+});
 function say(text) {
   if (!window.speechSynthesis) return;
   speechSynthesis.cancel();
   var clean = String(text).replace(/\*\*|__|`|#+\s/g, '').replace(/^\s*[-*•]\s+/gm, '').replace(/\n+/g, '. ');
-  var u = new SpeechSynthesisUtterance(clean); u.lang = 'en-GB'; u.rate = 1.03;
+  var u = new SpeechSynthesisUtterance(clean), v = currentVoice();
+  if (v) { u.voice = v; u.lang = v.lang; } else u.lang = 'en-GB';
+  u.rate = 1.03;
   speechSynthesis.speak(u);
 }
 function renderToggles() {
