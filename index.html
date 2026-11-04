@@ -243,6 +243,17 @@ main { padding: 0 16px 120px; }
     <button class="btn block" id="loginBtn">Unlock</button>
     <div class="err" id="loginErr"></div>
   </form>
+  <form class="login-card hidden" id="setupForm" autocomplete="off">
+    <img src="img/tvs-logo.png" alt="TVS">
+    <h1>First-time setup</h1>
+    <div class="muted">Choose your PIN and add your Claude API key. You only do this once.</div>
+    <input id="newPin" type="password" inputmode="numeric" maxlength="12" placeholder="New PIN (4-12 digits)" aria-label="New PIN" style="font-size:18px;letter-spacing:4px">
+    <input id="newPin2" type="password" inputmode="numeric" maxlength="12" placeholder="Same PIN again" aria-label="Repeat PIN" style="font-size:18px;letter-spacing:4px;margin-top:10px">
+    <input id="apiKey" type="password" placeholder="Claude API key (sk-ant-…)" aria-label="Claude API key" style="font-size:14px;letter-spacing:0;text-align:left;margin-top:10px">
+    <div class="muted" style="font-size:12px;margin-top:6px;text-align:left">Get the key at console.anthropic.com → API keys. You can leave it empty and add it later.</div>
+    <button class="btn block" id="setupBtn">Save and open</button>
+    <div class="err" id="setupErr"></div>
+  </form>
 </section>
 
 <!-- ======================= APP ======================= -->
@@ -388,7 +399,9 @@ function api(action, data) {
     .then(function (j) {
       if (!j.ok) {
         if (j.auth) { store.del(CONFIG.TOKEN_KEY); showLogin(); }
-        throw new Error(j.error || 'Request failed');
+        var err = new Error(j.error || 'Request failed');
+        err.setup = !!j.setup;
+        throw err;
       }
       return j.data;
     });
@@ -400,7 +413,12 @@ var store = {
 };
 
 /* ---------------- boot / login ---------------- */
-function showLogin() { $('app').classList.add('hidden'); $('login').classList.remove('hidden'); $('pin').focus(); }
+function showLogin() {
+  $('app').classList.add('hidden'); $('login').classList.remove('hidden'); $('pin').focus();
+  if (!DEMO) api('login', { pin: '' }).catch(function (err) {   // no PIN set yet -> first-time setup form
+    if (err.setup) { $('loginForm').classList.add('hidden'); $('setupForm').classList.remove('hidden'); $('newPin').focus(); }
+  });
+}
 function showApp() { $('login').classList.add('hidden'); $('app').classList.remove('hidden'); }
 
 $('loginForm').addEventListener('submit', function (e) {
@@ -408,8 +426,24 @@ $('loginForm').addEventListener('submit', function (e) {
   $('loginBtn').disabled = true; $('loginErr').textContent = '';
   api('login', { pin: $('pin').value }).then(function (r) {
     store.set(CONFIG.TOKEN_KEY, r.token); $('pin').value = ''; boot();
-  }).catch(function (err) { $('loginErr').textContent = err.message; })
-    .then(function () { $('loginBtn').disabled = false; });
+  }).catch(function (err) {
+    if (err.setup) { $('loginForm').classList.add('hidden'); $('setupForm').classList.remove('hidden'); $('newPin').focus(); return; }
+    $('loginErr').textContent = err.message;
+  }).then(function () { $('loginBtn').disabled = false; });
+});
+$('setupForm').addEventListener('submit', function (e) {
+  e.preventDefault();
+  $('setupErr').textContent = '';
+  if (!/^\d{4,12}$/.test($('newPin').value)) { $('setupErr').textContent = 'The PIN must be 4 to 12 digits.'; return; }
+  if ($('newPin').value !== $('newPin2').value) { $('setupErr').textContent = 'The two PINs are different.'; return; }
+  $('setupBtn').disabled = true;
+  api('firstSetup', { pin: $('newPin').value, apiKey: $('apiKey').value.trim() }).then(function (r) {
+    store.set(CONFIG.TOKEN_KEY, r.token);
+    ['newPin', 'newPin2', 'apiKey'].forEach(function (id) { $(id).value = ''; });
+    $('setupForm').classList.add('hidden'); $('loginForm').classList.remove('hidden');
+    boot();
+  }).catch(function (err) { $('setupErr').textContent = err.message; })
+    .then(function () { $('setupBtn').disabled = false; });
 });
 $('lockBtn').addEventListener('click', function () {
   api('logout').catch(function () {}); store.del(CONFIG.TOKEN_KEY); showLogin();
