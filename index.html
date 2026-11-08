@@ -16,7 +16,7 @@
   --navy: #0b1726; --navy-2: #102a3a;
   --red: #dc2626; --red-bg: #fef2f2; --orange: #d97706; --orange-bg: #fffbeb;
   --green: #15803d; --green-bg: #f0fdf4; --blue: #1d4ed8; --blue-bg: #eff6ff;
-  --mis: #1d4ed8; --cmms: #0f766e; --carder: #7c3aed; --spark: #db2777; --sales: #ea580c; --personal: #475569; --other: #64748b;
+  --mis: #1d4ed8; --cmms: #0f766e; --carder: #7c3aed; --spark: #db2777; --sales: #ea580c; --gen: #b45309; --personal: #475569; --other: #64748b;
   --radius: 14px; --radius-sm: 10px;
   --shadow: 0 1px 2px rgba(15,23,42,.05), 0 4px 16px rgba(15,23,42,.06);
   --shadow-lg: 0 18px 50px rgba(15,23,42,.22);
@@ -131,6 +131,24 @@ main { padding: 0 16px 120px; }
 .item:hover .go { color: var(--brand); }
 .empty { padding: 24px 16px; text-align: center; color: var(--muted); font-size: 14px; }
 .stamp { padding: 0 16px 14px; font-size: 12px; color: var(--muted); }
+
+/* generator */
+.gen-top { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; padding: 0 16px; }
+.gen-top .big { font-size: 30px; font-weight: 800; letter-spacing: -.5px; }
+.gen-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding: 10px 16px 4px; }
+.gen-stats div { background: var(--bg); border-radius: 10px; padding: 8px 10px; min-width: 0; }
+.gen-stats b { display: block; font-size: 18px; }
+.gen-stats span { font-size: 12px; color: var(--muted); }
+.gen-note { padding: 4px 16px 0; font-size: 12.5px; color: var(--muted); }
+.gen-alerts { padding: 6px 16px 4px; }
+.gen-alert { display: flex; gap: 10px; font-size: 13.5px; padding: 5px 0; }
+.gen-alert .tone { margin-top: 6px; }
+.gen-alert b { font-weight: 600; }
+.gen-links { display: flex; gap: 8px; flex-wrap: wrap; padding: 6px 16px 14px; }
+.gen-links a { text-decoration: none; }
+.gen-pin { display: flex; gap: 8px; padding: 0 16px 14px; }
+.gen-pin input { flex: 1; min-width: 0; border: 1px solid var(--line-2); border-radius: 10px; padding: 8px 12px; outline: none; }
+.gen-pin input:focus { border-color: var(--brand-600); box-shadow: 0 0 0 3px rgba(13,148,136,.15); }
 
 /* todos */
 .add-row { display: flex; gap: 8px; padding: 0 16px 10px; flex-wrap: wrap; }
@@ -308,6 +326,14 @@ main { padding: 0 16px 120px; }
         </section>
 
         <div style="display:grid; gap:18px; min-width:0">
+          <section class="card hidden" id="genCard" aria-labelledby="genH">
+            <div class="card-h">
+              <h2 id="genH">Generator</h2>
+              <span class="count" id="genSub"></span>
+            </div>
+            <div id="genBody"></div>
+          </section>
+
           <section class="card" aria-labelledby="todoH">
             <div class="card-h">
               <h2 id="todoH">My to-dos</h2>
@@ -382,7 +408,8 @@ var SYS = {
   MIS: { color: 'var(--mis)', key: 'mis' }, CMMS: { color: 'var(--cmms)', key: 'cmms' }, Carder: { color: 'var(--carder)', key: 'carder' },
   SPARK: { color: 'var(--spark)', key: 'spark' }, Sales: { color: 'var(--sales)', key: 'sales' }, Personal: { color: 'var(--personal)' }, Other: { color: 'var(--other)' }
 };
-var SYS_BY_KEY = { mis: 'MIS', cmms: 'CMMS', carder: 'Carder', spark: 'SPARK', sales: 'Sales' };
+var SYS_BY_KEY = { mis: 'MIS', cmms: 'CMMS', carder: 'Carder', spark: 'SPARK', sales: 'Sales', gen: 'Generator' };
+function sysColor(name) { return SYS[name] ? SYS[name].color : name === 'Generator' ? 'var(--gen)' : 'var(--other)'; }
 var APPS = [
   { name: 'MIS Dashboard', sub: 'Production · delivery · stores', short: 'MIS', color: 'var(--mis)', url: 'https://denuwantvsl-max.github.io/tvs-horana-mis/' },
   { name: 'CMMS', sub: 'Maintenance', short: 'CM', color: 'var(--cmms)', url: 'https://denuwantvsl-max.github.io/tvs-maintenance/' },
@@ -497,30 +524,73 @@ function renderAll() { renderKpis(); renderFeed(); renderTodos(); renderLog(); r
 function renderKpis() {
   var f = state.feed; if (!f) return;
   var html = '';
-  ['mis', 'cmms', 'carder', 'spark'].forEach(function (k) {
+  ['mis', 'cmms', 'carder', 'spark', 'gen'].forEach(function (k) {
     var s = f.systems[k]; if (!s) return;
     var name = SYS_BY_KEY[k];
     (s.kpis || []).forEach(function (x) {
-      html += '<div class="kpi ' + x.tone + '"><div class="sys" style="color:' + SYS[name].color + '">' + name.toUpperCase() + '</div><div class="lab">' + esc(x.label) + '</div>' +
+      html += '<div class="kpi ' + x.tone + '"><div class="sys" style="color:' + sysColor(name) + '">' + name.toUpperCase() + '</div><div class="lab">' + esc(x.label) + '</div>' +
         '<div class="val">' + esc(fmt(x.value)) + '</div><div class="sub">' + esc(x.sub || '') + '</div></div>';
     });
   });
   $('kpis').innerHTML = html;
+  renderGen();
 }
+
+/* ---------------- generator (Asset Log) ---------------- */
+function renderGen() {
+  var s = state.feed && state.feed.systems.gen, card = $('genCard');
+  if (!s) { card.classList.add('hidden'); return; }
+  card.classList.remove('hidden');
+  if (!s.ok || !s.data) { $('genSub').textContent = ''; $('genBody').innerHTML = '<div class="empty">' + esc(s.error || 'No generator data') + '</div>'; return; }
+  var g = s.data, l = g.last, r = g.lastRefill;
+  var stat = function (v, lab) { return '<div><b>' + v + '</b><span>' + lab + '</span></div>'; };
+  $('genSub').textContent = g.name;
+  var html = '<div class="gen-top"><span class="big">' + (l ? fmtH(l.hours) + ' h' : '—') + '</span><span class="muted">' +
+    (l ? 'read ' + niceDate(l.date) + (l.time ? ' ' + esc(l.time) : '') + (l.by ? ' · ' + esc(l.by) : '') : 'no readings yet') + '</span></div>';
+  html += '<div class="gen-stats">' +
+    stat(g.hoursMonth != null ? fmtH(g.hoursMonth) + ' h' : '—', 'run this month' + (g.monthFrom && g.monthFrom.slice(8) !== '01' ? ' (from ' + niceDate(g.monthFrom) + ')' : '')) +
+    stat(g.sinceService != null ? fmtH(g.sinceService) + ' h' : '—', 'since service' + (g.lastService ? ' (' + niceDate(g.lastService.date) + ')' : '')) +
+    stat(g.lphLast != null ? g.lphLast + ' L/h' : '—', 'diesel, last refill') +
+    stat(g.lphOverall != null ? g.lphOverall + ' L/h' : '—', 'diesel overall · normal ' + g.lphRange[0] + '-' + g.lphRange[1]) + '</div>';
+  if (r) html += '<div class="gen-note">Last refill ' + fmt(r.litres) + ' L on ' + niceDate(r.date) + ' at ' + fmtH(r.hours) + ' h' + (r.by ? ' · ' + esc(r.by) : '') + '</div>';
+  html += '<div class="gen-alerts">' + (g.alerts.length ? g.alerts.map(function (a) {
+    return '<div class="gen-alert"><span class="tone ' + a.tone + '"></span><div><b>' + esc(a.title) + '</b><div class="muted">' + esc(a.detail) + '</div></div></div>';
+  }).join('') : '<div class="gen-alert"><span class="tone good"></span><div>All generator checks OK</div></div>') + '</div>';
+  html += '<div class="gen-links"><a class="small-btn" href="asset-log.html" target="_blank" rel="noopener">Technician page</a>' +
+    '<a class="small-btn" href="' + esc(g.sheetUrl) + '" target="_blank" rel="noopener">Asset Log sheet</a>' +
+    '<button class="small-btn" type="button" id="genPinBtn">Technician PIN</button></div>' +
+    '<form class="gen-pin hidden" id="genPinForm" autocomplete="off"><input type="password" inputmode="numeric" maxlength="12" id="genPin" placeholder="New technician PIN (4-12 digits)" aria-label="New technician PIN">' +
+    '<button class="btn">Save</button></form>';
+  $('genBody').innerHTML = html;
+}
+$('genCard').addEventListener('click', function (e) {
+  if (!e.target.closest('#genPinBtn')) return;
+  $('genPinForm').classList.toggle('hidden'); $('genPin').focus();
+});
+$('genCard').addEventListener('submit', function (e) {
+  e.preventDefault();
+  var pin = $('genPin').value.trim();
+  if (!/^\d{4,12}$/.test(pin)) { toast('The technician PIN must be 4 to 12 digits.'); return; }
+  api('setTechPin', { pin: pin }).then(function () {
+    $('genPin').value = ''; $('genPinForm').classList.add('hidden');
+    toast('Technician PIN saved. Phones logged in before must log in again.');
+  }).catch(function (err) { toast(err.message); });
+});
+function fmtH(n) { return Number(n).toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 }); }
 
 /* ---------------- feed ---------------- */
 function renderFeed() {
   var f = state.feed; if (!f) return;
   var counts = { all: f.items.length };
   f.items.forEach(function (i) { counts[i.sys] = (counts[i.sys] || 0) + 1; });
-  $('filters').innerHTML = ['all', 'mis', 'cmms', 'carder', 'spark'].map(function (k) {
+  $('filters').innerHTML = ['all', 'mis', 'cmms', 'carder', 'spark', 'gen'].filter(function (k) { return k !== 'gen' || counts.gen; }).map(function (k) {
     return '<button data-f="' + k + '" class="' + (state.filter === k ? 'on' : '') + '">' + (k === 'all' ? 'All' : SYS_BY_KEY[k]) + ' ' + (counts[k] || 0) + '</button>';
   }).join('');
   var items = f.items.filter(function (i) { return state.filter === 'all' || i.sys === state.filter; });
   $('feed').innerHTML = items.length ? items.map(function (i) {
     var name = SYS_BY_KEY[i.sys] || i.sys;
     return '<a class="item" href="' + esc(i.link || '#') + '" target="_blank" rel="noopener"><span class="tone ' + i.tone + '"></span><div class="body">' +
-      '<div class="t"><span class="tag" style="background:' + (SYS[name] ? SYS[name].color : 'var(--other)') + '">' + esc(name) + '</span>' + esc(i.title) + '</div>' +
+      '<div class="t"><span class="tag" style="background:' + sysColor(name) + '">' + esc(name) + '</span>' + esc(i.title) + '</div>' +
       (i.detail ? '<div class="d">' + esc(i.detail) + '</div>' : '') + '</div>' +
       '<svg class="go" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></a>';
   }).join('') : '<div class="empty">Nothing here right now.</div>';
@@ -880,7 +950,11 @@ var Demo = (function () {
       mis: { ok: true, kpis: [{ label: 'Produced yesterday', value: 318, sub: '94% of plan 338', tone: 'warn' }, { label: 'Delivered yesterday', value: 296, sub: '101% of plan 293', tone: 'good' }, { label: 'Vehicles in repair', value: 42, sub: '3 over 90 days', tone: 'bad' }] },
       cmms: { ok: true, kpis: [{ label: 'Open jobs', value: 11, sub: '2 overdue', tone: 'bad' }, { label: 'PM overdue', value: 4, sub: '3 due today', tone: 'warn' }] },
       carder: { ok: true, kpis: [{ label: 'Attendance yesterday', value: '93.4%', sub: 'Month 94.1%', tone: 'warn' }, { label: 'Headcount', value: 412, sub: 'carder 430', tone: 'warn' }] },
-      spark: { ok: true, kpis: [{ label: 'SPARK tests (month)', value: 27, sub: '63% qualified', tone: 'info' }] }
+      spark: { ok: true, kpis: [{ label: 'SPARK tests (month)', value: 27, sub: '63% qualified', tone: 'info' }] },
+      gen: { ok: true, kpis: [{ label: 'Generator hours', value: 1001.2, sub: 'read yesterday 08:40', tone: 'warn' }, { label: 'Gen run this month', value: '6.4 h', sub: 'since 1 Nov', tone: 'info' }, { label: 'Gen diesel L/h', value: 21.4, sub: 'last refill · overall 17.9', tone: 'good' }],
+        data: { name: 'Demo generator · 250 kVA', last: { date: isoDay(new Date(Date.now() - 86400000)), time: '08:40', hours: 1001.2, by: 'Demo tech' }, hoursMonth: 6.4,
+          lphLast: 21.4, lphOverall: 17.9, lphRange: [10, 45], lastRefill: { date: isoDay(new Date(Date.now() - 86400000)), litres: 150, hours: 1000.5, by: 'Demo tech' },
+          lastService: { date: '2026-08-18', hours: 960 }, sinceService: 41.2, sheetUrl: '#', alerts: [{ tone: 'warn', title: 'Generator: today\'s hour reading is missing', detail: 'Last 1001.2 h yesterday by Demo tech' }] } }
     },
     items: [
       { sys: 'cmms', tone: 'bad', title: '1 breakdown stopping production', detail: 'WO-0131 Paint shop conveyor: chain slipping at station 4', link: APPS[1].url },
@@ -892,6 +966,7 @@ var Demo = (function () {
       { sys: 'mis', tone: 'warn', title: 'CKD batch 2 inspection in 3 days', detail: '412 of 480 built, 68 to go (projected 470)', link: APPS[0].url },
       { sys: 'carder', tone: 'warn', title: 'Headcount 412 vs approved carder 430', detail: '18 short · 6 vacant slots listed', link: APPS[2].url },
       { sys: 'mis', tone: 'good', title: 'Delivery yesterday: 296 of 293 planned', detail: 'All models on plan.', link: APPS[0].url },
+      { sys: 'gen', tone: 'warn', title: 'Generator: today\'s hour reading is missing', detail: 'Last 1001.2 h yesterday by Demo tech', link: '#' },
       { sys: 'spark', tone: 'info', title: '4 candidates tested today', detail: '3 qualified · average 82%', link: APPS[3].url },
       { sys: 'cmms', tone: 'info', title: '3 certificates expiring within 60 days', detail: 'Forklift FL-02 in 12d · Hoist H-05 in 31d · Boiler in 55d', link: APPS[1].url }
     ]
@@ -940,6 +1015,7 @@ var Demo = (function () {
         case 'chatClear': chat = []; return wait(true);
         case 'confirmAction': return wait({ text: '✅ WO-0133 is now ASSIGNED (assigned to Hirushan). (demo)' }, 900);
         case 'cancelAction': return wait(true);
+        case 'setTechPin': return wait(true);
         case 'logout': return wait(true);
         default: return wait(null);
       }
