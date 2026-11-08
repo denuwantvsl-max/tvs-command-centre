@@ -489,6 +489,10 @@ function boot() {
   showApp(); renderStatic();
   api('home').then(function (h) {
     state.feed = h.feed; state.todos = h.todos; state.log = h.log; state.chat = h.chat || [];
+    if (h.pending && h.pending.length) {   // changes still waiting for his OK survive a reload
+      state.chat.push({ role: 'assistant', text: 'Boss, ' + (h.pending.length === 1 ? 'this change is' : 'these changes are') + ' still waiting for your OK:', actions: h.pending });
+      setTimeout(function () { toast(h.pending.length + ' change' + (h.pending.length === 1 ? '' : 's') + ' waiting for your OK - open Assistant'); }, 800);
+    }
     state.aiReady = h.aiReady;
     $('aiState').textContent = !h.aiReady ? 'Add a free AI key to start' : h.aiReady === 'claude' ? 'Claude · knows your plant and your work' : 'Gemini (free) · knows your plant and your work';
     renderAll();
