@@ -577,7 +577,7 @@ function renderGen() {
   html += '<div class="gen-alerts">' + (real.length ? real.map(function (a) {
     return '<div class="gen-alert"><span class="tone ' + a.tone + '"></span><div><b>' + esc(a.title) + '</b>' + (a.detail ? '<div class="muted">' + esc(a.detail) + '</div>' : '') + '</div></div>';
   }).join('') : '<div class="gen-alert"><span class="tone good"></span><div>All readings checks OK</div></div>') + '</div>';
-  html += '<div class="gen-links"><a class="small-btn" href="' + esc(d.link || 'https://denuwantvsl-max.github.io/tvs-maintenance/app.html#readings') + '" target="_blank" rel="noopener">Open in CMMS</a></div>';
+  html += '<div class="gen-links"><a class="small-btn" href="' + esc(d.link || 'https://denuwantvsl-max.github.io/tvs-maintenance/app.html#readings') + '" target="_blank" rel="noopener">Open in CMMS</a><a class="small-btn" href="https://denuwantvsl-max.github.io/tvs-maintenance/insights.html" target="_blank" rel="noopener">📈 Charts</a></div>';
   $('genBody').innerHTML = html;
 }
 function fmtH(n) { return Number(n).toLocaleString('en-US', { maximumFractionDigits: 2 }); }
