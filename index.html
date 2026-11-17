@@ -782,14 +782,22 @@ function openConfirms() {
   return out;
 }
 function answerConfirm(id, yes) {
-  var a = findConfirm(id); if (!a || a.state) return;
+  var a = findConfirm(id); if (!a || a.state) return Promise.resolve();
   a.state = yes ? 'busy' : 'cancelled'; a.error = ''; renderChat();
-  if (!yes) { api('cancelAction', { id: id }).catch(function () {}); return; }
-  api('confirmAction', { id: id }).then(function (r) {
+  if (!yes) { api('cancelAction', { id: id }).catch(function () {}); return Promise.resolve(); }
+  return api('confirmAction', { id: id }).then(function (r) {
     a.state = 'done'; a.result = r.text; renderChat();
     if (state.speak) say(r.text);
     api('log', { days: 3 }).then(function (l) { state.log = l; renderLog(); });
   }).catch(function (err) { a.state = ''; a.error = err.message; renderChat(); });
+}
+/** The open cards of the latest message that has any (one multi-part answer). */
+function lastConfirmGroup() {
+  for (var i = state.chat.length - 1; i >= 0; i--) {
+    var open = (state.chat[i].actions || []).filter(function (a) { return a.type === 'confirm' && !a.state; });
+    if (open.length) return open;
+  }
+  return [];
 }
 $('msgs').addEventListener('click', function (e) {
   var b = e.target.closest('[data-cf]'); if (!b) return;
@@ -812,7 +820,12 @@ function ask(text) {
   openChat();
   // "yes" / "no" with exactly one change waiting answers that change directly (no AI round trip)
   var waiting = openConfirms();
-  if (waiting.length === 1 && /^(yes|y|ok|okay|confirm|go ahead|do it|yes please)[.! ]*$/i.test(text)) { answerConfirm(waiting[0].id, true); return; }
+  // several cards from one answer: "yes" confirms them all, one after another (2026-11-17)
+  var group = lastConfirmGroup(), isYes = /^(yes|y|ok|okay|confirm|confirm all|go ahead|do it|yes please)[.! ]*$/i.test(text);
+  if (waiting.length && group.length === waiting.length && isYes) {
+    group.reduce(function (p, a) { return p.then(function () { return answerConfirm(a.id, true); }); }, Promise.resolve());
+    return;
+  }
   if (waiting.length === 1 && /^(no|n|cancel|stop|don'?t)[.! ]*$/i.test(text)) { answerConfirm(waiting[0].id, false); return; }
   state.busy = true;
   state.chat.push({ role: 'user', text: text });
