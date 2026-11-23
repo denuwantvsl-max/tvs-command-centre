@@ -16,7 +16,7 @@
   --navy: #0b1726; --navy-2: #102a3a;
   --red: #dc2626; --red-bg: #fef2f2; --orange: #d97706; --orange-bg: #fffbeb;
   --green: #15803d; --green-bg: #f0fdf4; --blue: #1d4ed8; --blue-bg: #eff6ff;
-  --mis: #1d4ed8; --cmms: #0f766e; --carder: #7c3aed; --spark: #db2777; --sales: #ea580c; --gen: #b45309; --power: #c2410c; --personal: #475569; --other: #64748b;
+  --mis: #1d4ed8; --cmms: #0f766e; --carder: #7c3aed; --spark: #db2777; --sales: #ea580c; --gen: #b45309; --power: #c2410c; --iso: #15803d; --personal: #475569; --other: #64748b;
   --radius: 14px; --radius-sm: 10px;
   --shadow: 0 1px 2px rgba(15,23,42,.05), 0 4px 16px rgba(15,23,42,.06);
   --shadow-lg: 0 18px 50px rgba(15,23,42,.22);
@@ -437,8 +437,9 @@ var APPS = [
   { name: 'MIS Dashboard', sub: 'Production · delivery · stores', short: 'MIS', color: 'var(--mis)', url: 'https://denuwantvsl-max.github.io/tvs-horana-mis/' },
   { name: 'CMMS', sub: 'Maintenance', short: 'CM', color: 'var(--cmms)', url: 'https://denuwantvsl-max.github.io/tvs-maintenance/' },
   { name: 'Carder', sub: 'Attendance · HR', short: 'HR', color: 'var(--carder)', url: 'https://denuwantvsl-max.github.io/tvs-hr-attendance/' },
-  { name: 'SPARK', sub: 'Skill tests', short: 'SP', color: 'var(--spark)', url: 'https://denuwantvsl-max.github.io/tvs-spark-portal/' },
+  { name: 'SPARK', sub: 'Skill tests', short: 'SP', color: 'var(--spark)', url: 'https://denuwantvsl-max.github.io/tvs-spark-portal/home.html' },
   { name: 'Sales stock', sub: 'For sales team', short: 'SS', color: 'var(--sales)', url: 'https://denuwantvsl-max.github.io/tvs-sales-stock/' },
+  { name: 'ISO 9001', sub: 'QMS dashboard', short: 'ISO', color: 'var(--iso)', url: 'https://denuwantvsl-max.github.io/tvs-iso-dashboard/' },
   { name: 'Claude', sub: 'Desktop projects', short: 'AI', color: '#c2410c', url: 'https://claude.ai/' }
 ];
 var CHIPS = ['How was production yesterday?', 'What needs my attention today?', 'Any overdue maintenance?', 'Attendance by section', 'Summarise my week'];
@@ -1045,7 +1046,7 @@ var Demo = (function () {
     }
     var lg = s.match(/^(?:log|i (?:just )?(?:did|finished|met|checked|approved))(?: that)?\s*(.*)/);
     if (lg) { log.unshift({ id: 'L000' + (m++), when: new Date().toISOString(), text: q.replace(/^log( that)?\s*/i, ''), system: 'Other', source: 'assistant' }); r.reply = 'Logged it.'; r.changed.log = true; return r; }
-    var op = s.match(/open (mis|cmms|carder|spark|sales|claude)/);
+    var op = s.match(/open (mis|cmms|carder|spark|sales|iso|claude)/);
     if (op) { var a = APPS.filter(function (x) { return x.name.toLowerCase().indexOf(op[1]) >= 0 || x.short.toLowerCase() === op[1]; })[0] || APPS[0]; r.actions.push({ type: 'open', url: a.url, name: a.name }); r.reply = 'Opening ' + a.name + '.'; return r; }
     if (/approve|assign/.test(s)) {
       r.reply = 'Boss, here is the change. Tap **Confirm** to save it.';
