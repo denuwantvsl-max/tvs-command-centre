@@ -16,7 +16,7 @@
   --navy: #0b1726; --navy-2: #102a3a;
   --red: #dc2626; --red-bg: #fef2f2; --orange: #d97706; --orange-bg: #fffbeb;
   --green: #15803d; --green-bg: #f0fdf4; --blue: #1d4ed8; --blue-bg: #eff6ff;
-  --mis: #1d4ed8; --cmms: #0f766e; --carder: #7c3aed; --spark: #db2777; --sales: #ea580c; --gen: #b45309; --personal: #475569; --other: #64748b;
+  --mis: #1d4ed8; --cmms: #0f766e; --carder: #7c3aed; --spark: #db2777; --sales: #ea580c; --gen: #b45309; --power: #c2410c; --personal: #475569; --other: #64748b;
   --radius: 14px; --radius-sm: 10px;
   --shadow: 0 1px 2px rgba(15,23,42,.05), 0 4px 16px rgba(15,23,42,.06);
   --shadow-lg: 0 18px 50px rgba(15,23,42,.22);
@@ -154,6 +154,16 @@ main { padding: 0 16px 120px; }
 .rd-pt .s { font-size: 12.5px; color: var(--muted); }
 .rd-ok { font-size: 12px; font-weight: 700; color: var(--green); }
 .rd-due { font-size: 12px; font-weight: 700; color: var(--orange); }
+/* electricity */
+.pw-top { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; padding: 0 16px; }
+.pw-top .big { font-size: 30px; font-weight: 800; letter-spacing: -.5px; }
+.pw-top .delta { font-size: 12.5px; font-weight: 700; padding: 1px 8px; border-radius: 999px; background: var(--bg); color: var(--muted); }
+.pw-top .delta.up { background: var(--red-bg); color: var(--red); } .pw-top .delta.down { background: var(--green-bg); color: var(--green); }
+.pw-spark { display: flex; align-items: flex-end; gap: 3px; height: 64px; padding: 8px 16px 0; }
+.pw-spark i { flex: 1; min-width: 0; background: #bfdbfe; border-radius: 3px 3px 0 0; position: relative; }
+.pw-spark i.last { background: #2a78d6; }
+.pw-spark i.gap { background: repeating-linear-gradient(45deg, #e2e8f0 0 3px, #fff 3px 6px); }
+.pw-axis { display: flex; justify-content: space-between; padding: 3px 16px 0; font-size: 11px; color: var(--muted); }
 
 /* todos */
 .add-row { display: flex; gap: 8px; padding: 0 16px 10px; flex-wrap: wrap; }
@@ -339,6 +349,14 @@ main { padding: 0 16px 120px; }
             <div id="genBody"></div>
           </section>
 
+          <section class="card hidden" id="powerCard" aria-labelledby="powerH">
+            <div class="card-h">
+              <h2 id="powerH">Electricity</h2>
+              <span class="count" id="powerSub"></span>
+            </div>
+            <div id="powerBody"></div>
+          </section>
+
           <section class="card" aria-labelledby="todoH">
             <div class="card-h">
               <h2 id="todoH">My to-dos</h2>
@@ -413,8 +431,8 @@ var SYS = {
   MIS: { color: 'var(--mis)', key: 'mis' }, CMMS: { color: 'var(--cmms)', key: 'cmms' }, Carder: { color: 'var(--carder)', key: 'carder' },
   SPARK: { color: 'var(--spark)', key: 'spark' }, Sales: { color: 'var(--sales)', key: 'sales' }, Personal: { color: 'var(--personal)' }, Other: { color: 'var(--other)' }
 };
-var SYS_BY_KEY = { mis: 'MIS', cmms: 'CMMS', carder: 'Carder', spark: 'SPARK', sales: 'Sales', gen: 'Readings' };
-function sysColor(name) { return SYS[name] ? SYS[name].color : name === 'Readings' ? 'var(--gen)' : 'var(--other)'; }
+var SYS_BY_KEY = { mis: 'MIS', cmms: 'CMMS', carder: 'Carder', spark: 'SPARK', sales: 'Sales', gen: 'Readings', power: 'Electricity' };
+function sysColor(name) { return SYS[name] ? SYS[name].color : name === 'Readings' ? 'var(--gen)' : name === 'Electricity' ? 'var(--power)' : 'var(--other)'; }
 var APPS = [
   { name: 'MIS Dashboard', sub: 'Production · delivery · stores', short: 'MIS', color: 'var(--mis)', url: 'https://denuwantvsl-max.github.io/tvs-horana-mis/' },
   { name: 'CMMS', sub: 'Maintenance', short: 'CM', color: 'var(--cmms)', url: 'https://denuwantvsl-max.github.io/tvs-maintenance/' },
@@ -533,7 +551,7 @@ function renderAll() { renderKpis(); renderFeed(); renderTodos(); renderLog(); r
 function renderKpis() {
   var f = state.feed; if (!f) return;
   var html = '';
-  ['mis', 'cmms', 'carder', 'spark', 'gen'].forEach(function (k) {
+  ['mis', 'cmms', 'carder', 'spark', 'gen', 'power'].forEach(function (k) {
     var s = f.systems[k]; if (!s) return;
     var name = SYS_BY_KEY[k];
     (s.kpis || []).forEach(function (x) {
@@ -542,7 +560,7 @@ function renderKpis() {
     });
   });
   $('kpis').innerHTML = html;
-  renderGen();
+  renderGen(); renderPower();
 }
 
 /* ---------------- plant readings (from CMMS) ---------------- */
@@ -580,6 +598,27 @@ function renderGen() {
   html += '<div class="gen-links"><a class="small-btn" href="' + esc(d.link || 'https://denuwantvsl-max.github.io/tvs-maintenance/app.html#readings') + '" target="_blank" rel="noopener">Open in CMMS</a><a class="small-btn" href="https://denuwantvsl-max.github.io/tvs-maintenance/insights.html" target="_blank" rel="noopener">📈 Charts</a></div>';
   $('genBody').innerHTML = html;
 }
+/* ---------------- electricity (bills in Drive) ---------------- */
+function renderPower() {
+  var s = state.feed && state.feed.systems.power, card = $('powerCard');
+  if (!s) { card.classList.add('hidden'); return; }
+  card.classList.remove('hidden');
+  if (!s.ok || !s.data || !s.data.last) { $('powerSub').textContent = ''; $('powerBody').innerHTML = '<div class="empty">' + esc(s.error || 'No bills yet') + '</div>'; return; }
+  var d = s.data, l = d.last, hist = d.recent || [];
+  $('powerSub').textContent = l.label + ' bill';
+  var ch = d.vsLastYear, max = Math.max.apply(null, hist.map(function (h) { return h.chargeRs || 0; }).concat([1]));
+  var html = '<div class="pw-top"><span class="big">Rs ' + Math.round(l.chargeRs).toLocaleString('en-US') + '</span>' +
+    (ch != null ? '<span class="delta ' + (ch > 0 ? 'up' : 'down') + '">' + (ch > 0 ? '▲ +' : '▼ ') + ch + '% vs ' + esc(d.lyLabel) + '</span>' : '') + '</div>';
+  html += '<div class="gen-stats"><div><b>' + Number(l.kwh).toLocaleString('en-US') + ' kWh</b><span>units used</span></div><div><b>Rs ' + Number(l.rsPerKwh).toFixed(1) + '</b><span>per kWh, all in</span></div>' +
+    '<div><b>' + l.kva + ' kVA</b><span>max demand (contract 400)</span></div><div><b>Rs ' + Math.round(l.interestRs || 0).toLocaleString('en-US') + '</b><span>late interest this bill</span></div></div>';
+  if (hist.length) {
+    html += '<div class="pw-spark" title="Month charge, last ' + hist.length + ' months">' + hist.map(function (h, i) {
+      return '<i class="' + (i === hist.length - 1 ? 'last' : h.chargeRs ? '' : 'gap') + '" style="height:' + (h.chargeRs ? Math.max(6, h.chargeRs / max * 100) : 100) + '%" title="' + esc(h.label + ': ' + (h.chargeRs ? 'Rs ' + Math.round(h.chargeRs).toLocaleString('en-US') : 'no bill')) + '"></i>';
+    }).join('') + '</div><div class="pw-axis"><span>' + esc(hist[0].label) + '</span><span>' + esc(hist[hist.length - 1].label) + '</span></div>';
+  }
+  html += '<div class="gen-links" style="padding-top:10px"><a class="small-btn" href="energy.html' + (DEMO ? '?demo' : '') + '">⚡ Electricity dashboard</a></div>';
+  $('powerBody').innerHTML = html;
+}
 function fmtH(n) { return Number(n).toLocaleString('en-US', { maximumFractionDigits: 2 }); }
 
 /* ---------------- feed ---------------- */
@@ -587,7 +626,7 @@ function renderFeed() {
   var f = state.feed; if (!f) return;
   var counts = { all: f.items.length };
   f.items.forEach(function (i) { counts[i.sys] = (counts[i.sys] || 0) + 1; });
-  $('filters').innerHTML = ['all', 'mis', 'cmms', 'carder', 'spark', 'gen'].filter(function (k) { return k !== 'gen' || counts.gen; }).map(function (k) {
+  $('filters').innerHTML = ['all', 'mis', 'cmms', 'carder', 'spark', 'gen', 'power'].filter(function (k) { return (k !== 'gen' && k !== 'power') || counts[k]; }).map(function (k) {
     return '<button data-f="' + k + '" class="' + (state.filter === k ? 'on' : '') + '">' + (k === 'all' ? 'All' : SYS_BY_KEY[k]) + ' ' + (counts[k] || 0) + '</button>';
   }).join('');
   var items = f.items.filter(function (i) { return state.filter === 'all' || i.sys === state.filter; });
@@ -968,6 +1007,9 @@ var Demo = (function () {
       cmms: { ok: true, kpis: [{ label: 'Open jobs', value: 11, sub: '2 overdue', tone: 'bad' }, { label: 'PM overdue', value: 4, sub: '3 due today', tone: 'warn' }] },
       carder: { ok: true, kpis: [{ label: 'Attendance yesterday', value: '93.4%', sub: 'Month 94.1%', tone: 'warn' }, { label: 'Headcount', value: 412, sub: 'carder 430', tone: 'warn' }] },
       spark: { ok: true, kpis: [{ label: 'SPARK tests (month)', value: 27, sub: '63% qualified', tone: 'info' }] },
+      power: { ok: true, kpis: [{ label: 'Electricity Oct 2026', value: 'Rs 1,310k', sub: '23,400 kWh · +48% vs Oct 2025', tone: 'warn' }, { label: 'Cost per kWh', value: 'Rs 56.0', sub: 'Oct 2026 · was 44.1', tone: 'info' }],
+        data: { lyLabel: 'Oct 2025', vsLastYear: 48, last: { label: 'Oct 2026', chargeRs: 1310000, kwh: 23400, rsPerKwh: 56, kva: 104, interestRs: 9800 },
+          recent: [700, 820, 640, 760, 905, 930, 1010, 880, 1190, 1250, 1220, 0, 0, 1310].map(function (v, i) { return { label: ['Sep 2025', 'Oct 2025', 'Nov 2025', 'Dec 2025', 'Jan 2026', 'Feb 2026', 'Mar 2026', 'Apr 2026', 'May 2026', 'Jun 2026', 'Jul 2026', 'Aug 2026', 'Sep 2026', 'Oct 2026'][i], chargeRs: v * 1000 }; }) } },
       gen: { ok: true, kpis: [{ label: 'Generator hours', value: 1286.75, sub: 'fuel 64% ≈ 282 L · yesterday', tone: 'warn' }, { label: 'Compressor loaded', value: '14%', sub: 'last 7 days · 92 starts/day', tone: 'warn' }, { label: 'Water used / day', value: '7.5 m³', sub: 'usual 7.3 m³', tone: 'info' }],
         data: { doneToday: 1, tankLitres: 440, link: '#', points: [
           { id: 'GEN', name: 'Diesel generator 250 kVA', meter: 'Hours', doneToday: false, last: { date: isoDay(new Date(Date.now() - 86400000)), time: '08:40', by: 'Demo tech', values: { Hours: 1286.75, Starts: 813, FuelPct: 64 } }, stats: { fuelPct: 64, fuelLitres: 282, lph: 17.2, monthHours: 4.3 } },
@@ -986,6 +1028,7 @@ var Demo = (function () {
       { sys: 'carder', tone: 'warn', title: 'Headcount 412 vs approved carder 430', detail: '18 short · 6 vacant slots listed', link: APPS[2].url },
       { sys: 'mis', tone: 'good', title: 'Delivery yesterday: 296 of 293 planned', detail: 'All models on plan.', link: APPS[0].url },
       { sys: 'gen', tone: 'warn', title: 'Compressor loaded only 14% of its running time', detail: 'Running unloaded wastes power: check air leaks and the pressure settings.', link: '#' },
+      { sys: 'power', tone: 'warn', title: 'Late payment interest Rs 9,800 on the Oct 2026 electricity bill (demo)', detail: 'Paying each bill within 15 days avoids this.', link: 'energy.html?demo' },
       { sys: 'spark', tone: 'info', title: '4 candidates tested today', detail: '3 qualified · average 82%', link: APPS[3].url },
       { sys: 'cmms', tone: 'info', title: '3 certificates expiring within 60 days', detail: 'Forklift FL-02 in 12d · Hoist H-05 in 31d · Boiler in 55d', link: APPS[1].url }
     ]

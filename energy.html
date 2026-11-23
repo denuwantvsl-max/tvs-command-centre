@@ -1,0 +1,456 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#0b1726">
+<title>Electricity Dashboard</title>
+<link rel="icon" href="img/icon-32.png">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  --ink: #0b1220; --ink-2: #1e293b; --muted: #64748b; --line: #e2e8f0; --line-2: #cbd5e1;
+  --bg: #f3f6fa; --surface: #fff; --navy: #0b1726; --navy-2: #102a3a; --brand: #0f766e;
+  --red: #dc2626; --red-bg: #fef2f2; --orange: #b45309; --orange-bg: #fffbeb; --green: #15803d; --green-bg: #f0fdf4; --blue-bg: #eff6ff;
+  /* chart roles (validated reference palette, light mode) */
+  --s-now: #2a78d6;      /* this year */
+  --s-last: #a3acb9;     /* last year (recessive) */
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a;
+  --grid: #eef2f6;
+  --radius: 14px; --shadow: 0 1px 2px rgba(15,23,42,.05), 0 4px 16px rgba(15,23,42,.06);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--ink);
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; font-size: 15px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+a { color: inherit; }
+button { font: inherit; cursor: pointer; }
+.hidden { display: none !important; }
+.wrap { max-width: 1280px; margin: 0 auto; }
+
+.hero { background: radial-gradient(900px 420px at 85% -20%, #7c4a03 0%, transparent 60%), linear-gradient(180deg, var(--navy) 0%, var(--navy-2) 100%);
+  color: #fff; padding: 14px 16px 64px; }
+.top { display: flex; align-items: center; gap: 10px; }
+.top .back { color: #cbd5e1; text-decoration: none; font-size: 14px; display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 10px;
+  border: 1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.06); }
+.top .back:hover { background: rgba(255,255,255,.14); }
+.top .sp { flex: 1; }
+.top .ghost { color: #cbd5e1; border: 1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.06); border-radius: 10px; padding: 6px 12px; font-size: 14px; }
+.demo-pill { display: inline-block; margin-left: 8px; padding: 2px 8px; border-radius: 999px; background: #f59e0b; color: #1f1300; font-size: 12px; font-weight: 700; vertical-align: middle; }
+h1 { margin: 22px 0 2px; font-size: clamp(24px, 3.4vw, 34px); letter-spacing: -.4px; display: flex; align-items: center; gap: 10px; }
+h1 .bolt { width: 38px; height: 38px; border-radius: 11px; background: linear-gradient(135deg, #f59e0b, #ea580c); display: grid; place-items: center; flex: none; }
+h1 .bolt svg { width: 22px; height: 22px; }
+.sub { color: #a5b4c8; font-size: 14px; }
+.sub b { color: #e2e8f0; font-weight: 600; }
+
+main { padding: 0 16px 60px; margin-top: -46px; }
+.tiles { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+.tile { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); padding: 14px 16px; min-width: 0; }
+.tile .lab { font-size: 12.5px; color: var(--muted); font-weight: 600; }
+.tile .val { font-size: 28px; font-weight: 800; letter-spacing: -.6px; margin-top: 2px; white-space: nowrap; }
+.tile .val small { font-size: 15px; font-weight: 700; color: var(--muted); letter-spacing: 0; }
+.tile .s { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+.delta { display: inline-flex; align-items: center; gap: 3px; font-weight: 700; font-size: 12.5px; padding: 1px 7px; border-radius: 999px; }
+.delta.up { background: var(--red-bg); color: var(--red); } .delta.down { background: var(--green-bg); color: var(--green); } .delta.flat { background: var(--bg); color: var(--muted); }
+.gauge { height: 8px; border-radius: 999px; background: var(--line); margin-top: 8px; overflow: hidden; }
+.gauge i { display: block; height: 100%; background: linear-gradient(90deg, #1baf7a, #eda100); border-radius: 999px; }
+
+.section-t { margin: 26px 2px 10px; font-size: 13px; font-weight: 800; letter-spacing: .6px; text-transform: uppercase; color: var(--muted); }
+.vs { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px; display: grid; grid-template-columns: 1.1fr 2fr; gap: 18px; align-items: center; }
+.vs-h b { display: block; font-size: 20px; letter-spacing: -.3px; }
+.vs-h span { color: var(--muted); font-size: 13.5px; }
+.vs-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.vs-cell { background: var(--bg); border-radius: 12px; padding: 12px; min-width: 0; }
+.vs-cell .k { font-size: 12.5px; color: var(--muted); font-weight: 600; }
+.vs-cell .pair { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; margin-top: 2px; }
+.vs-cell .now { font-size: 20px; font-weight: 800; letter-spacing: -.3px; }
+.vs-cell .was { font-size: 13px; color: var(--muted); }
+.vs-cell .delta { margin-top: 6px; }
+.split { margin-top: 12px; font-size: 13.5px; color: var(--ink-2); grid-column: 1 / -1; }
+.split-bar { display: flex; height: 12px; border-radius: 999px; overflow: hidden; gap: 2px; margin: 6px 0 4px; background: var(--surface); }
+.split-bar i { display: block; height: 100%; }
+.legend-row { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); }
+.legend-row span { display: inline-flex; align-items: center; gap: 6px; }
+.legend-row i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+
+.grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.card { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); padding: 14px 16px 12px; min-width: 0; }
+.card h2 { margin: 0; font-size: 15.5px; }
+.card .cap { font-size: 12.5px; color: var(--muted); margin: 2px 0 8px; }
+.chart { position: relative; height: 260px; }
+.card .foot { font-size: 12.5px; color: var(--muted); margin-top: 8px; }
+
+.bands { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 10px; }
+.band { border-radius: 12px; padding: 10px 12px; background: var(--bg); border-left: 4px solid var(--line-2); min-width: 0; }
+.band b { display: block; font-size: 18px; letter-spacing: -.3px; }
+.band span { font-size: 12px; color: var(--muted); display: block; }
+
+.insights { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.ins { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); padding: 14px 16px; display: grid; grid-template-columns: 34px 1fr; gap: 10px; }
+.ins .ic { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; font-size: 17px; background: var(--bg); }
+.ins.save .ic { background: var(--green-bg); } .ins.warn .ic { background: var(--orange-bg); } .ins.bad .ic { background: var(--red-bg); } .ins.info .ic { background: var(--blue-bg); }
+.ins b { display: block; font-size: 14.5px; }
+.ins p { margin: 2px 0 0; font-size: 13.5px; color: var(--muted); }
+.ins .big { font-size: 18px; font-weight: 800; color: var(--ink); letter-spacing: -.3px; }
+
+.tbl-wrap { overflow-x: auto; background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; font-variant-numeric: tabular-nums; }
+th, td { padding: 8px 10px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--line); }
+th { font-size: 12px; color: var(--muted); font-weight: 700; background: #f8fafc; position: sticky; top: 0; }
+th:first-child, td:first-child { text-align: left; }
+tr.gap td { color: var(--muted); font-style: italic; }
+td a { color: var(--brand); font-weight: 600; text-decoration: none; }
+.tag { font-size: 11px; font-weight: 700; padding: 1px 6px; border-radius: 6px; background: var(--bg); color: var(--muted); margin-left: 6px; font-style: normal; }
+.tag.ai { background: var(--orange-bg); color: var(--orange); }
+.note { font-size: 12.5px; color: var(--muted); margin: 10px 2px 0; }
+.msg { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); padding: 28px 18px; text-align: center; color: var(--muted); }
+.msg a { color: var(--brand); font-weight: 700; }
+.skel { background: linear-gradient(90deg, #eef2f7 25%, #f8fafc 50%, #eef2f7 75%); background-size: 200% 100%; animation: sk 1.2s infinite; border-radius: 12px; height: 110px; }
+@keyframes sk { to { background-position: -200% 0; } }
+
+@media (max-width: 1100px) { .tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 860px) { .grid2, .vs { grid-template-columns: 1fr; } }
+@media (max-width: 640px) {
+  .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tile .val { font-size: 22px; }
+  .vs-grid { grid-template-columns: 1fr; }
+  .bands { grid-template-columns: 1fr; }
+  .chart { height: 230px; }
+  .top .ghost span { display: none; }
+}
+</style>
+</head>
+<body>
+<header class="hero">
+  <div class="wrap">
+    <div class="top">
+      <a class="back" href="./"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M15 6l-6 6 6 6"/></svg>Command Centre</a>
+      <div class="sp"></div>
+      <a class="ghost hidden" id="sheetLink" href="#" target="_blank" rel="noopener" style="text-decoration:none">📄 <span>Bills sheet</span></a>
+      <button class="ghost" id="refresh">↻ <span>Refresh</span></button>
+    </div>
+    <h1><span class="bolt"><svg viewBox="0 0 24 24" fill="#fff"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg></span>Factory electricity<span id="demoPill"></span></h1>
+    <div class="sub" id="heroSub">Horana Assembly Complex · reading the bills…</div>
+  </div>
+</header>
+
+<main>
+  <div class="wrap" id="root">
+    <div class="tiles"><div class="skel"></div><div class="skel"></div><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>
+  </div>
+</main>
+
+<script>
+var CONFIG = {
+  API_URL: 'https://script.google.com/macros/s/AKfycby2YHKj2IKHzHQlTRYiczrS3CUVYMSLFWknrTf9VzLK28LuTq9OofduBTPJBVT2KDM-pA/exec',
+  TOKEN_KEY: 'tvsCmdToken'
+};
+var DEMO = new URLSearchParams(location.search).has('demo') || !CONFIG.API_URL;
+var $ = function (id) { return document.getElementById(id); };
+var charts = [];
+var MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+function css(v) { return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+function n0(v) { return Math.round(v).toLocaleString('en-US'); }
+function rs(v) { v = Math.round(v); return 'Rs ' + v.toLocaleString('en-US'); }
+function rsShort(v) { var a = Math.abs(v); return (v < 0 ? '-' : '') + 'Rs ' + (a >= 1e6 ? (a / 1e6).toFixed(2) + 'M' : a >= 1e3 ? Math.round(a / 1e3) + 'k' : Math.round(a)); }
+function pct(a, b) { return b ? (a / b - 1) * 100 : null; }
+function deltaHtml(p, goodWhenDown) {
+  if (p === null || !isFinite(p)) return '';
+  var r = Math.round(p), cls = Math.abs(p) < 1 ? 'flat' : (p > 0) === !!goodWhenDown ? 'up' : 'down';
+  if (!goodWhenDown) cls = 'flat';
+  return '<span class="delta ' + cls + '">' + (p > 0 ? '▲ ' : p < 0 ? '▼ ' : '') + (r > 0 ? '+' : '') + r + '%</span>';
+}
+
+/* ---------------- data ---------------- */
+function load(fresh) {
+  if (DEMO) return Promise.resolve(demoData());
+  var token = null; try { token = localStorage.getItem(CONFIG.TOKEN_KEY); } catch (e) {}
+  if (!token) return Promise.reject({ login: true });
+  return fetch(CONFIG.API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'energy', token: token, refresh: !!fresh }) })
+    .then(function (r) { return r.json(); })
+    .then(function (j) { if (!j.ok) throw j.auth ? { login: true } : new Error(j.error || 'Request failed'); return j.data; });
+}
+
+/** Made-up figures for ?demo (the public page never holds real bills). */
+function demoData() {
+  var months = [], seed = 7;
+  function rnd() { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; }
+  for (var y = 2025; y <= 2026; y++) for (var m = 1; m <= 12; m++) {
+    var ym = y + '-' + ('0' + m).slice(-2);
+    if (ym > '2026-10') break;
+    var o = { month: ym, label: MON[m - 1] + ' ' + y, status: 'bill', supplier: y === 2026 && m >= 3 ? 'EDL' : 'CEB', invoice: 'DEMO-' + ym };
+    if (ym === '2026-08' || ym === '2026-09') { o.status = 'missing'; o.gap = { months: ['Aug 2026', 'Sep 2026'], kwh: 41000 }; o.note = 'No bill in the folder (demo).'; months.push(o); continue; }
+    var base = y === 2025 ? 12000 : 18000, k = Math.round(base + rnd() * 5000 + (m % 5) * 600);
+    o.peak = Math.round(k * .17); o.off = Math.round(k * .1); o.day = k - o.peak - o.off; o.kwh = k;
+    o.kva = Math.round((y === 2025 ? 55 : 85) + rnd() * 25);
+    var hike = ym >= '2026-05';
+    o.peakRate = hike ? 75 : 45; o.dayRate = hike ? 50 : 40; o.offRate = hike ? 38 : 30; o.kvaRate = hike ? 1750 : 1450;
+    o.energyRs = o.peak * o.peakRate + o.day * o.dayRate + o.off * o.offRate; o.demandRs = o.kva * o.kvaRate; o.fixedRs = hike ? 6000 : 5000;
+    o.ssclRs = Math.round((o.energyRs + o.demandRs + o.fixedRs) * .025); o.chargeRs = o.energyRs + o.demandRs + o.fixedRs + o.ssclRs;
+    o.interestRs = rnd() > .3 ? Math.round(5000 + rnd() * 8000) : 0; o.adjustRs = 0; o.payableRs = o.chargeRs * 1.4;
+    if (ym === '2025-02') { o.status = 'meter'; ['kva', 'energyRs', 'demandRs', 'fixedRs', 'ssclRs', 'chargeRs', 'interestRs', 'payableRs', 'peakRate', 'dayRate', 'offRate', 'kvaRate'].forEach(function (f) { o[f] = null; }); o.note = 'Units from meter readings (demo).'; }
+    if (o.chargeRs) o.rsPerKwh = Math.round(o.chargeRs / o.kwh * 100) / 100;
+    if (o.kva) o.loadFactor = Math.round(o.kwh / (o.kva * 720) * 1000) / 10;
+    months.push(o);
+  }
+  return { generatedAt: new Date().toISOString(), contractKva: 400, months: months, sheetUrl: '' };
+}
+
+/* ---------------- render ---------------- */
+function render(d) {
+  charts.forEach(function (c) { c.destroy(); }); charts = [];
+  var M = d.months, bills = M.filter(function (m) { return m.chargeRs; });
+  if (!bills.length) { $('root').innerHTML = '<div class="msg">No bills in the sheet yet.</div>'; return; }
+  var last = bills[bills.length - 1], years = [];
+  M.forEach(function (m) { var y = +m.month.slice(0, 4); if (years.indexOf(y) < 0) years.push(y); });
+  var Y = years[years.length - 1], LY = Y - 1;
+  var byYm = {}; M.forEach(function (m) { byYm[m.month] = m; });
+  var lyOf = function (m) { return byYm[(+m.month.slice(0, 4) - 1) + m.month.slice(4)]; };
+  var lastLy = lyOf(last);
+  if (d.sheetUrl) { $('sheetLink').href = d.sheetUrl; $('sheetLink').classList.remove('hidden'); }
+  $('heroSub').innerHTML = 'Horana Assembly Complex · account GP-2, contract ' + d.contractKva + ' kVA · <b>' + bills.length + ' bills</b> from ' + esc(M[0].label) + ' to ' + esc(last.label) +
+    ' · supplier now <b>' + esc(last.supplier === 'EDL' ? 'Electricity Distribution Lanka' : last.supplier === 'CEB' ? 'Ceylon Electricity Board' : last.supplier || '') + '</b>';
+
+  // like-for-like: months of this year that have a bill in both years
+  var pairs = M.filter(function (m) { return +m.month.slice(0, 4) === Y && m.chargeRs && lyOf(m) && lyOf(m).chargeRs; });
+  var sum = function (arr, f) { return arr.reduce(function (s, m) { return s + (m[f] || 0); }, 0); };
+  var lyPairs = pairs.map(lyOf);
+  var kN = sum(pairs, 'kwh'), kL = sum(lyPairs, 'kwh'), cN = sum(pairs, 'chargeRs'), cL = sum(lyPairs, 'chargeRs');
+  var interestAll = sum(bills, 'interestRs');
+  var maxKva = Math.max.apply(null, bills.map(function (m) { return m.kva || 0; }));
+
+  var html = '';
+  /* hero tiles */
+  html += '<div class="tiles">' +
+    tile('Latest bill · ' + last.label, rsShort(last.chargeRs), lastLy && lastLy.chargeRs ? deltaHtml(pct(last.chargeRs, lastLy.chargeRs), true) + ' vs ' + lastLy.label : 'invoice ' + esc(last.invoice || '')) +
+    tile('Units used · ' + last.label, n0(last.kwh) + ' <small>kWh</small>', lastLy && lastLy.kwh ? deltaHtml(pct(last.kwh, lastLy.kwh), true) + ' vs ' + lastLy.label : '') +
+    tile('Cost per unit', 'Rs ' + last.rsPerKwh.toFixed(1) + ' <small>/kWh</small>', lastLy && lastLy.rsPerKwh ? deltaHtml(pct(last.rsPerKwh, lastLy.rsPerKwh), true) + ' was Rs ' + lastLy.rsPerKwh.toFixed(1) : 'all charges ÷ units') +
+    tile('Max demand · ' + last.label, last.kva + ' <small>kVA</small>', Math.round(last.kva / d.contractKva * 100) + '% of ' + d.contractKva + ' kVA contract<div class="gauge"><i style="width:' + Math.min(100, last.kva / d.contractKva * 100) + '%"></i></div>') +
+    tile('Late payment interest', rsShort(interestAll), 'since ' + esc(bills[0].label) + ' · ' + bills.filter(function (m) { return m.interestRs > 0; }).length + ' of ' + bills.length + ' bills') +
+    '</div>';
+
+  /* this year vs last year */
+  if (pairs.length) {
+    var oldRate = rateCard(bills.filter(function (m) { return +m.month.slice(0, 4) === LY && m.peakRate; }).pop());
+    var atOld = oldRate ? pairs.reduce(function (s, m) { return s + m.peak * oldRate.peak + m.day * oldRate.day + m.off * oldRate.off + (m.kva || 0) * oldRate.kva + (m.fixedRs || 0) + (m.ssclRs || 0); }, 0) : null;
+    var priceEffect = atOld !== null ? cN - atOld : null, useEffect = atOld !== null ? atOld - cL : null;
+    var names = pairs.map(function (m) { return m.label.slice(0, 3); });
+    html += '<div class="section-t">' + Y + ' vs ' + LY + ' · same months</div><div class="vs">' +
+      '<div class="vs-h"><b>' + (cN >= cL ? 'Paying ' + rsShort(cN - cL) + ' more' : 'Paying ' + rsShort(cL - cN) + ' less') + '</b><span>for ' + names.join(', ') + ' ' + Y +
+      ' compared with the same ' + pairs.length + ' months of ' + LY + '. Months without a bill in both years are left out.</span></div>' +
+      '<div class="vs-grid">' +
+      vsCell('Units (kWh)', n0(kN), n0(kL), pct(kN, kL)) +
+      vsCell('Electricity cost', rsShort(cN), rsShort(cL), pct(cN, cL)) +
+      vsCell('Average Rs / kWh', (cN / kN).toFixed(1), (cL / kL).toFixed(1), pct(cN / kN, cL / kL)) +
+      '</div>';
+    if (priceEffect !== null && cN > cL) {
+      var tot = Math.max(1, Math.abs(priceEffect) + Math.abs(useEffect));
+      html += '<div class="split"><b>Why the bill went up:</b> ' + rsShort(useEffect) + ' from using more power, ' + rsShort(priceEffect) + ' from higher rates (' + esc(oldRate.label) + ' rates applied to the ' + Y + ' units).' +
+        '<div class="split-bar"><i style="width:' + (Math.max(0, useEffect) / tot * 100) + '%;background:var(--s1)"></i><i style="width:' + (Math.max(0, priceEffect) / tot * 100) + '%;background:var(--s2)"></i></div>' +
+        '<div class="legend-row"><span><i style="background:var(--s1)"></i>More units</span><span><i style="background:var(--s2)"></i>Higher rates</span></div></div>';
+    }
+    html += '</div>';
+  }
+
+  /* charts */
+  html += '<div class="section-t">Month by month</div><div class="grid2">' +
+    card('cCost', 'Electricity cost', 'Month charge on each bill, ' + LY + ' vs ' + Y, legend([['var(--s-last)', String(LY)], ['var(--s-now)', String(Y)]])) +
+    card('cKwh', 'Units used (kWh)', 'Dashed = months with no bill, average worked out from the meter readings', legend([['var(--s-last)', String(LY)], ['var(--s-now)', String(Y)]])) +
+    '</div>';
+
+  /* time of use */
+  var shareLast = { peak: last.peak / last.kwh, day: last.day / last.kwh, off: last.off / last.kwh };
+  html += '<div class="section-t">When the factory uses power</div><div class="grid2">' +
+    card('cBand', 'Units by time of day', 'Peak 6.30–10.30 pm · Day 5.30 am–6.30 pm · Off-peak 10.30 pm–5.30 am',
+      legend([['var(--s2)', 'Peak'], ['var(--s1)', 'Day'], ['var(--s3)', 'Off-peak']])) +
+    '<div class="card"><h2>' + esc(last.label) + ': units and price per band</h2><div class="cap">Same unit costs ' + (last.peakRate / last.offRate).toFixed(1) + '× more at peak than off-peak</div>' +
+    '<div class="chart" style="height:190px"><canvas id="cDonut"></canvas></div>' +
+    '<div class="bands">' +
+    band('Peak', last.peak, shareLast.peak, last.peakRate, 'var(--s2)') + band('Day', last.day, shareLast.day, last.dayRate, 'var(--s1)') + band('Off-peak', last.off, shareLast.off, last.offRate, 'var(--s3)') +
+    '</div></div></div>';
+
+  /* money and demand */
+  html += '<div class="section-t">Where the money goes</div><div class="grid2">' +
+    card('cParts', 'Bill make-up', 'Energy (units) · Demand (max kVA × rate) · Fixed + SSCL levy', legend([['var(--s1)', 'Energy'], ['var(--s2)', 'Demand charge'], ['var(--s3)', 'Fixed + SSCL']])) +
+    card('cRate', 'Cost per unit (Rs / kWh)', 'All charges on the bill ÷ units · tariff changes marked', '') +
+    '</div><div class="grid2" style="margin-top:16px">' +
+    card('cKva', 'Maximum demand (kVA)', 'Highest kVA in the month; the demand charge is this × the kVA rate. Contract ' + d.contractKva + ' kVA.', '') +
+    card('cLf', 'Load factor (%)', 'Units ÷ (max kVA × 720 h). Higher = steadier load, cheaper per unit.', '') +
+    '</div>';
+
+  /* insights */
+  html += '<div class="section-t">What the bills tell us</div><div class="insights">' + insights(d, bills, last, interestAll, maxKva).join('') + '</div>';
+
+  /* table */
+  html += '<div class="section-t">All bills</div><div class="tbl-wrap"><table><thead><tr><th>Month</th><th>kWh</th><th>Peak</th><th>Day</th><th>Off-peak</th><th>Max kVA</th><th>Month charge</th><th>Rs/kWh</th><th>Interest</th><th>Payable</th><th>Bill</th></tr></thead><tbody>' +
+    M.slice().reverse().map(function (m) {
+      if (!m.chargeRs && !m.kwh) return '<tr class="gap"><td>' + esc(m.label) + '<span class="tag">no bill</span></td><td colspan="10" style="text-align:left">' + esc(m.note || 'No bill in the folder') + '</td></tr>';
+      return '<tr' + (m.chargeRs ? '' : ' class="gap"') + '><td>' + esc(m.label) + (m.status === 'ai' ? '<span class="tag ai" title="Read by AI - please check">AI</span>' : m.status === 'meter' ? '<span class="tag" title="' + esc(m.note || '') + '">meter</span>' : '') + '</td>' +
+        '<td>' + n0(m.kwh) + '</td><td>' + n0(m.peak) + '</td><td>' + n0(m.day) + '</td><td>' + n0(m.off) + '</td><td>' + (m.kva || '–') + '</td>' +
+        '<td>' + (m.chargeRs ? n0(m.chargeRs) : '–') + '</td><td>' + (m.rsPerKwh ? m.rsPerKwh.toFixed(1) : '–') + '</td><td>' + (m.interestRs ? n0(m.interestRs) : '–') + '</td>' +
+        '<td>' + (m.payableRs ? n0(m.payableRs) : '–') + '</td><td>' + (m.fileUrl ? '<a href="' + esc(m.fileUrl) + '" target="_blank" rel="noopener">PDF</a>' : '') + '</td></tr>';
+    }).join('') + '</tbody></table></div>' +
+    '<div class="note">New bill? Drop the PDF (or a phone scan) into the "Electricity Bills - Assembly Plant" folder in Drive. It is read automatically within an hour and marked <span class="tag ai">AI</span> until you check it in the sheet. Figures as printed on the bills; amounts in Sri Lankan rupees.</div>';
+
+  $('root').innerHTML = html;
+  drawCharts(d, M, Y, LY, last);
+}
+
+function rateCard(m) { return m ? { peak: m.peakRate, day: m.dayRate, off: m.offRate, kva: m.kvaRate, label: m.label } : null; }
+function tile(lab, val, s) { return '<div class="tile"><div class="lab">' + esc(lab) + '</div><div class="val">' + val + '</div><div class="s">' + s + '</div></div>'; }
+function vsCell(k, now, was, p) { return '<div class="vs-cell"><div class="k">' + k + '</div><div class="pair"><span class="now">' + now + '</span><span class="was">was ' + was + '</span></div>' + deltaHtml(p, true) + '</div>'; }
+function card(id, title, cap, leg) { return '<div class="card"><h2>' + esc(title) + '</h2><div class="cap">' + esc(cap) + '</div>' + leg + '<div class="chart"><canvas id="' + id + '"></canvas></div></div>'; }
+function legend(items) { return '<div class="legend-row" style="margin-bottom:6px">' + items.map(function (i) { return '<span><i style="background:' + i[0] + '"></i>' + esc(i[1]) + '</span>'; }).join('') + '</div>'; }
+function band(name, units, share, rate, color) {
+  return '<div class="band" style="border-left-color:' + color + '"><b>' + Math.round(share * 100) + '%</b><span>' + name + ' · ' + n0(units) + ' kWh</span><span>Rs ' + rate + ' per kWh</span></div>';
+}
+
+function insights(d, bills, last, interestAll, maxKva) {
+  var out = [], Y = +last.month.slice(0, 4);
+  // 1. peak shifting
+  if (last.peakRate && last.offRate) {
+    var shift = Math.round(last.peak * 0.2), save = shift * (last.peakRate - last.offRate);
+    out.push(ins('save', '🌙', 'Move 20% of peak units to off-peak', 'About <span class="big">' + rsShort(save) + '</span> a month (≈ ' + rsShort(save * 12) + ' a year) at ' + last.label + ' rates. Peak costs Rs ' + last.peakRate + ', off-peak Rs ' + last.offRate + ' per kWh: ' + n0(shift) + ' kWh of compressor, charging or curing loads after 10.30 pm.'));
+  }
+  // 2. late interest
+  if (interestAll > 0) {
+    var yr = bills.filter(function (m) { return +m.month.slice(0, 4) === Y; }).reduce(function (s, m) { return s + (m.interestRs || 0); }, 0);
+    out.push(ins('bad', '⏰', 'Late payment interest is avoidable', '<span class="big">' + rsShort(interestAll) + '</span> paid since ' + bills[0].label + ' (' + rsShort(yr) + ' in ' + Y + '). Bills are often paid after the next one arrives, so two months are outstanding. Paying within 15 days saves this in full.'));
+  }
+  // 3. demand charge
+  if (last.demandRs && last.chargeRs) {
+    var trim = Math.round(last.kva * 0.1) * last.kvaRate;
+    out.push(ins('warn', '📈', 'Demand charge is ' + Math.round(last.demandRs / last.chargeRs * 100) + '% of the bill', 'Max demand ' + last.kva + ' kVA in ' + last.label + ' (highest so far ' + maxKva + ' kVA). Staggering big motor / compressor / welder starts to cut the peak by 10% saves about <span class="big">' + rsShort(trim) + '</span> a month.'));
+  }
+  // 4. tariff
+  var yearAgo = bills.filter(function (m) { return m.month <= (+last.month.slice(0, 4) - 1) + last.month.slice(4) && m.dayRate; }).pop();
+  if (yearAgo && last.dayRate && last.dayRate !== yearAgo.dayRate) {
+    var steps = bills.filter(function (m, i) { return i && m.month > yearAgo.month && m.dayRate && bills[i - 1].dayRate && m.dayRate !== bills[i - 1].dayRate; }).map(function (m) { return m.label; });
+    var same = last.peak * yearAgo.peakRate + last.day * yearAgo.dayRate + last.off * yearAgo.offRate + last.kva * yearAgo.kvaRate;
+    var now = last.peak * last.peakRate + last.day * last.dayRate + last.off * last.offRate + last.kva * last.kvaRate;
+    out.push(ins('info', '🏷️', 'Rates up since ' + yearAgo.label, 'Changed in ' + steps.join(' and ') + '. Peak Rs ' + yearAgo.peakRate + ' → ' + last.peakRate + ', day ' + yearAgo.dayRate + ' → ' + last.dayRate +
+      ', off-peak ' + yearAgo.offRate + ' → ' + last.offRate + ', kVA ' + yearAgo.kvaRate + ' → ' + last.kvaRate + '. The ' + last.label + ' units would have cost <span class="big">' + rsShort(now - same) + '</span> less at the old rates (+' + Math.round(pct(now, same)) + '%).'));
+  }
+  // 5. power factor reminder (kVA vs kW)
+  var lf = last.loadFactor;
+  if (lf) out.push(ins('info', '⚙️', 'Load factor ' + lf + '%', 'The factory runs at a steady ' + lf + '% of its peak over the month. Raising it (fewer short spikes, power-factor correction capacitors kept in service) lowers Rs per kWh because the kVA charge is spread over more units.'));
+  // 6. missing bills
+  var miss = d.months.filter(function (m) { return m.status === 'missing'; });
+  if (miss.length) {
+    var g = miss[0].gap;
+    out.push(ins('warn', '📂', 'Missing bills: ' + miss.map(function (m) { return m.label; }).join(', '), (g ? 'Meter readings show ' + n0(g.kwh) + ' kWh were used in those months, but the cost is unknown. ' : '') + 'Put the PDFs in the Drive folder to complete the picture.'));
+  }
+  return out;
+}
+function ins(kind, icon, title, body) { return '<div class="ins ' + kind + '"><div class="ic">' + icon + '</div><div><b>' + esc(title) + '</b><p>' + body + '</p></div></div>'; }
+
+/* ---------------- charts ---------------- */
+function drawCharts(d, M, Y, LY, last) {
+  if (!window.Chart) return;
+  Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
+  Chart.defaults.font.size = 12;
+  Chart.defaults.color = css('--muted');
+  var grid = { color: css('--grid'), drawTicks: false }, noGrid = { display: false };
+  var tip = { backgroundColor: '#0b1220', padding: 10, cornerRadius: 8, displayColors: true, boxPadding: 4 };
+  var base = function (extra) {
+    return Object.assign({ responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { display: false }, tooltip: tip }, scales: { x: { grid: noGrid, border: { display: false } }, y: { grid: grid, border: { display: false }, beginAtZero: true } } }, extra || {});
+  };
+  var byYm = {}; M.forEach(function (m) { byYm[m.month] = m; });
+  var yr = function (y, f) { return MON.map(function (_, i) { var m = byYm[y + '-' + ('0' + (i + 1)).slice(-2)]; return m && m[f] != null ? m[f] : null; }); };
+  var sNow = css('--s-now'), sLast = css('--s-last'), s1 = css('--s1'), s2 = css('--s2'), s3 = css('--s3');
+  var bar = { borderRadius: 4, borderSkipped: 'start', maxBarThickness: 18, categoryPercentage: .7, barPercentage: .9 };
+  var rsTick = function (v) { return rsShort(v).replace('Rs ', ''); };
+
+  charts.push(new Chart($('cCost'), { type: 'bar', data: { labels: MON, datasets: [
+    Object.assign({ label: String(LY), data: yr(LY, 'chargeRs'), backgroundColor: sLast }, bar),
+    Object.assign({ label: String(Y), data: yr(Y, 'chargeRs'), backgroundColor: sNow }, bar)
+  ] }, options: base({ plugins: { legend: { display: false }, tooltip: Object.assign({}, tip, { callbacks: { label: function (c) { return ' ' + c.dataset.label + ': ' + (c.raw == null ? 'no bill' : rs(c.raw)); } } }) },
+    scales: { x: { grid: noGrid, border: { display: false }, ticks: { maxRotation: 0, autoSkipPadding: 6 } }, y: { grid: grid, border: { display: false }, beginAtZero: true, ticks: { callback: rsTick } } } }) }));
+
+  // kWh: gap months shown as the meter average (dashed segment)
+  var gapFill = function (y) {
+    return MON.map(function (_, i) { var m = byYm[y + '-' + ('0' + (i + 1)).slice(-2)]; if (!m) return null; if (m.kwh != null) return m.kwh; return m.gap ? Math.round(m.gap.kwh / m.gap.months.length) : null; });
+  };
+  var isGap = function (y, i) { var m = byYm[y + '-' + ('0' + (i + 1)).slice(-2)]; return !!(m && m.kwh == null && m.gap); };
+  var line = function (y, color) {
+    return { label: String(y), data: gapFill(y), borderColor: color, backgroundColor: color, borderWidth: 2, tension: .25, spanGaps: false,
+      pointRadius: function (c) { return isGap(y, c.dataIndex) ? 4 : 3; }, pointHoverRadius: 6, pointBorderColor: '#fff', pointBorderWidth: 2,
+      pointBackgroundColor: function (c) { return isGap(y, c.dataIndex) ? '#fff' : color; },
+      segment: { borderDash: function (c) { return isGap(y, c.p0DataIndex) || isGap(y, c.p1DataIndex) ? [5, 4] : undefined; } } };
+  };
+  charts.push(new Chart($('cKwh'), { type: 'line', data: { labels: MON, datasets: [line(LY, sLast), line(Y, sNow)] },
+    options: base({ plugins: { legend: { display: false }, tooltip: Object.assign({}, tip, { callbacks: { label: function (c) {
+      return ' ' + c.dataset.label + ': ' + (c.raw == null ? 'no data' : n0(c.raw) + ' kWh' + (isGap(+c.dataset.label, c.dataIndex) ? ' (meter average, no bill)' : ''));
+    } } }) }, scales: { x: { grid: noGrid, border: { display: false }, ticks: { maxRotation: 0, autoSkipPadding: 6 } }, y: { grid: grid, border: { display: false }, beginAtZero: true, ticks: { callback: function (v) { return (v / 1000) + 'k'; } } } } }) }));
+
+  var withUnits = M.filter(function (m) { return m.kwh != null; });
+  var short = function (m) { return m.label.slice(0, 3) + ' ' + m.month.slice(2, 4); };
+  var stack = Object.assign({}, bar, { maxBarThickness: 22, categoryPercentage: .8, barPercentage: .95, borderRadius: 0, borderColor: '#fff', borderWidth: { top: 2 } });
+  charts.push(new Chart($('cBand'), { type: 'bar', data: { labels: withUnits.map(short), datasets: [
+    Object.assign({ label: 'Off-peak', data: withUnits.map(function (m) { return m.off; }), backgroundColor: s3 }, stack),
+    Object.assign({ label: 'Day', data: withUnits.map(function (m) { return m.day; }), backgroundColor: s1 }, stack),
+    Object.assign({ label: 'Peak', data: withUnits.map(function (m) { return m.peak; }), backgroundColor: s2 }, stack, { borderRadius: { topLeft: 4, topRight: 4 } })
+  ] }, options: base({ plugins: { legend: { display: false }, tooltip: Object.assign({}, tip, { itemSort: function (a, b) { return b.datasetIndex - a.datasetIndex; }, callbacks: { label: function (c) { return ' ' + c.dataset.label + ': ' + n0(c.raw) + ' kWh'; } } }) },
+    scales: { x: { stacked: true, grid: noGrid, border: { display: false }, ticks: { maxRotation: 0, autoSkip: true, autoSkipPadding: 8 } }, y: { stacked: true, grid: grid, border: { display: false }, ticks: { callback: function (v) { return (v / 1000) + 'k'; } } } } }) }));
+
+  charts.push(new Chart($('cDonut'), { type: 'doughnut', data: { labels: ['Peak', 'Day', 'Off-peak'], datasets: [{
+    data: [last.peak * last.peakRate, last.day * last.dayRate, last.off * last.offRate], backgroundColor: [s2, s1, s3], borderColor: '#fff', borderWidth: 2, hoverOffset: 4 }] },
+    options: { responsive: true, maintainAspectRatio: false, cutout: '62%', plugins: { legend: { position: 'right', labels: { boxWidth: 10, boxHeight: 10, useBorderRadius: true, borderRadius: 3, color: css('--ink-2'),
+      generateLabels: function (ch) { var ds = ch.data.datasets[0], t = ds.data.reduce(function (a, b) { return a + b; }, 0);
+        return ch.data.labels.map(function (l, i) { return { text: l + ' ' + rsShort(ds.data[i]) + ' (' + Math.round(ds.data[i] / t * 100) + '%)', fillStyle: ds.backgroundColor[i], strokeStyle: ds.backgroundColor[i], index: i }; }); } } },
+      tooltip: Object.assign({}, tip, { callbacks: { label: function (c) { return ' ' + c.label + ' energy: ' + rs(c.raw); } } }) } } }));
+
+  var billed = M.filter(function (m) { return m.chargeRs; });
+  charts.push(new Chart($('cParts'), { type: 'bar', data: { labels: billed.map(short), datasets: [
+    Object.assign({ label: 'Energy', data: billed.map(function (m) { return m.energyRs; }), backgroundColor: s1 }, stack),
+    Object.assign({ label: 'Demand charge', data: billed.map(function (m) { return m.demandRs; }), backgroundColor: s2 }, stack),
+    Object.assign({ label: 'Fixed + SSCL', data: billed.map(function (m) { return (m.fixedRs || 0) + (m.ssclRs || 0); }), backgroundColor: s3 }, stack, { borderRadius: { topLeft: 4, topRight: 4 } })
+  ] }, options: base({ plugins: { legend: { display: false }, tooltip: Object.assign({}, tip, { itemSort: function (a, b) { return b.datasetIndex - a.datasetIndex; }, callbacks: { label: function (c) { return ' ' + c.dataset.label + ': ' + rs(c.raw); }, footer: function (items) { return 'Month charge: ' + rs(billed[items[0].dataIndex].chargeRs); } } }) },
+    scales: { x: { stacked: true, grid: noGrid, border: { display: false }, ticks: { maxRotation: 0, autoSkip: true, autoSkipPadding: 8 } }, y: { stacked: true, grid: grid, border: { display: false }, ticks: { callback: rsTick } } } }) }));
+
+  // Rs/kWh with tariff-change markers
+  var changes = billed.map(function (m, i) { return i && m.supplier !== billed[i - 1].supplier ? 'Now ' + m.supplier : i && m.dayRate && billed[i - 1].dayRate && m.dayRate !== billed[i - 1].dayRate ? 'Tariff ' + (m.dayRate > billed[i - 1].dayRate ? '▲' : '▼') : ''; });
+  var markers = { id: 'markers', afterDatasetsDraw: function (ch) {
+    var ctx = ch.ctx, xs = ch.scales.x, area = ch.chartArea;
+    ctx.save(); ctx.font = '600 11px ' + Chart.defaults.font.family; ctx.textAlign = 'center';
+    changes.forEach(function (t, i) { if (!t) return; var x = xs.getPixelForValue(i);
+      ctx.strokeStyle = css('--line-2'); ctx.setLineDash([3, 3]); ctx.beginPath(); ctx.moveTo(x, area.top + 14); ctx.lineTo(x, area.bottom); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = css('--ink-2'); ctx.fillText(t, x, area.top + 8); });
+    ctx.restore(); } };
+  charts.push(new Chart($('cRate'), { type: 'line', data: { labels: billed.map(short), datasets: [{ label: 'Rs / kWh', data: billed.map(function (m) { return m.rsPerKwh; }),
+    borderColor: sNow, backgroundColor: 'rgba(42,120,214,.08)', fill: true, borderWidth: 2, tension: .25, pointRadius: 3, pointHoverRadius: 6, pointBackgroundColor: sNow, pointBorderColor: '#fff', pointBorderWidth: 2 }] },
+    options: base({ layout: { padding: { top: 10 } }, plugins: { legend: { display: false }, tooltip: Object.assign({}, tip, { callbacks: { label: function (c) { return ' Rs ' + c.raw.toFixed(2) + ' per kWh'; } } }) },
+      scales: { x: { grid: noGrid, border: { display: false }, ticks: { maxRotation: 0, autoSkip: true, autoSkipPadding: 8 } }, y: { grid: grid, border: { display: false }, beginAtZero: false, grace: '10%' } } }), plugins: [markers] }));
+
+  var contract = { id: 'contract', afterDatasetsDraw: function (ch) {
+    var y = ch.scales.y.getPixelForValue(d.contractKva), a = ch.chartArea, ctx = ch.ctx; if (y < a.top) return;
+    ctx.save(); ctx.strokeStyle = css('--red'); ctx.setLineDash([5, 4]); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(a.left, y); ctx.lineTo(a.right, y); ctx.stroke();
+    ctx.fillStyle = css('--red'); ctx.font = '600 11px ' + Chart.defaults.font.family; ctx.textAlign = 'right'; ctx.fillText('Contract ' + d.contractKva + ' kVA', a.right, y - 5); ctx.restore(); } };
+  charts.push(new Chart($('cKva'), { type: 'bar', data: { labels: billed.map(short), datasets: [Object.assign({ label: 'Max kVA', data: billed.map(function (m) { return m.kva; }),
+    backgroundColor: billed.map(function (m) { return m === last ? s2 : sNow; }) }, bar, { maxBarThickness: 16 })] },
+    options: base({ plugins: { legend: { display: false }, tooltip: Object.assign({}, tip, { displayColors: false, callbacks: { label: function (c) { var m = billed[c.dataIndex]; return [c.raw + ' kVA (' + Math.round(c.raw / d.contractKva * 100) + '% of contract)', 'Demand charge ' + rs(m.demandRs || 0)]; } } }) },
+      scales: { x: { grid: noGrid, border: { display: false }, ticks: { maxRotation: 0, autoSkip: true, autoSkipPadding: 8 } }, y: { grid: grid, border: { display: false }, beginAtZero: true, suggestedMax: d.contractKva * 1.05 } } }), plugins: [contract] }));
+
+  charts.push(new Chart($('cLf'), { type: 'line', data: { labels: billed.map(short), datasets: [{ label: 'Load factor', data: billed.map(function (m) { return m.loadFactor; }),
+    borderColor: s3, backgroundColor: s3, borderWidth: 2, tension: .25, pointRadius: 3, pointHoverRadius: 6, pointBorderColor: '#fff', pointBorderWidth: 2 }] },
+    options: base({ plugins: { legend: { display: false }, tooltip: Object.assign({}, tip, { displayColors: false, callbacks: { label: function (c) { return c.raw + '% load factor'; } } }) },
+      scales: { x: { grid: noGrid, border: { display: false }, ticks: { maxRotation: 0, autoSkip: true, autoSkipPadding: 8 } }, y: { grid: grid, border: { display: false }, beginAtZero: true, ticks: { callback: function (v) { return v + '%'; } } } } }) }));
+}
+
+/* ---------------- boot ---------------- */
+function go(fresh) {
+  $('refresh').disabled = true;
+  load(fresh).then(render).catch(function (err) {
+    $('root').innerHTML = err && err.login
+      ? '<div class="msg">Please open the <a href="./">Command Centre</a> and unlock it with your PIN first, then come back here.</div>'
+      : '<div class="msg">Could not load the bills: ' + esc(err && err.message || err) + '</div>';
+  }).then(function () { $('refresh').disabled = false; });
+}
+if (DEMO) $('demoPill').innerHTML = '<span class="demo-pill">DEMO DATA</span>';
+$('refresh').addEventListener('click', function () { go(true); });
+go(false);
+</script>
+</body>
+</html>
