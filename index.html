@@ -16,7 +16,7 @@
   --navy: #0b1726; --navy-2: #102a3a;
   --red: #dc2626; --red-bg: #fef2f2; --orange: #d97706; --orange-bg: #fffbeb;
   --green: #15803d; --green-bg: #f0fdf4; --blue: #1d4ed8; --blue-bg: #eff6ff;
-  --mis: #1d4ed8; --cmms: #0f766e; --carder: #7c3aed; --spark: #db2777; --sales: #ea580c; --gen: #b45309; --power: #c2410c; --iso: #15803d; --personal: #475569; --other: #64748b;
+  --mis: #1d4ed8; --cmms: #0f766e; --carder: #7c3aed; --spark: #db2777; --sales: #ea580c; --gen: #b45309; --power: #c2410c; --iso: #15803d; --mrm: #0e7490; --personal: #475569; --other: #64748b;
   --radius: 14px; --radius-sm: 10px;
   --shadow: 0 1px 2px rgba(15,23,42,.05), 0 4px 16px rgba(15,23,42,.06);
   --shadow-lg: 0 18px 50px rgba(15,23,42,.22);
@@ -269,6 +269,12 @@ main { padding: 0 16px 120px; }
   .fab span { display: none; }
   .fab { padding: 0 15px; }
 }
+.mrm-list { display: grid; gap: 6px; margin-top: 10px; }
+.mrm-a { display: block; padding: 8px 10px; border-radius: 10px; border-left: 4px solid #94a3b8; background: rgba(148,163,184,.08); color: inherit; text-decoration: none; font-size: 13.5px; }
+.mrm-a:hover { background: rgba(148,163,184,.16); }
+.mrm-a b { display: block; font-weight: 700; }
+.mrm-a span { display: block; font-size: 12.5px; opacity: .75; margin-top: 1px; }
+.mrm-a em { font-style: normal; color: #dc2626; font-weight: 700; }
 </style>
 </head>
 <body>
@@ -341,6 +347,14 @@ main { padding: 0 16px 120px; }
         </section>
 
         <div style="display:grid; gap:18px; min-width:0">
+          <section class="card hidden" id="mrmCard" aria-labelledby="mrmH">
+            <div class="card-h">
+              <h2 id="mrmH">General MRM</h2>
+              <span class="count" id="mrmSub"></span>
+            </div>
+            <div id="mrmBody"></div>
+          </section>
+
           <section class="card hidden" id="genCard" aria-labelledby="genH">
             <div class="card-h">
               <h2 id="genH">Plant readings</h2>
@@ -431,8 +445,8 @@ var SYS = {
   MIS: { color: 'var(--mis)', key: 'mis' }, CMMS: { color: 'var(--cmms)', key: 'cmms' }, Carder: { color: 'var(--carder)', key: 'carder' },
   SPARK: { color: 'var(--spark)', key: 'spark' }, Sales: { color: 'var(--sales)', key: 'sales' }, Personal: { color: 'var(--personal)' }, Other: { color: 'var(--other)' }
 };
-var SYS_BY_KEY = { mis: 'MIS', cmms: 'CMMS', carder: 'Carder', spark: 'SPARK', sales: 'Sales', gen: 'Readings', power: 'Electricity' };
-function sysColor(name) { return SYS[name] ? SYS[name].color : name === 'Readings' ? 'var(--gen)' : name === 'Electricity' ? 'var(--power)' : 'var(--other)'; }
+var SYS_BY_KEY = { mis: 'MIS', cmms: 'CMMS', carder: 'Carder', spark: 'SPARK', sales: 'Sales', gen: 'Readings', power: 'Electricity', mrm: 'MRM' };
+function sysColor(name) { return SYS[name] ? SYS[name].color : name === 'Readings' ? 'var(--gen)' : name === 'Electricity' ? 'var(--power)' : name === 'MRM' ? 'var(--mrm)' : 'var(--other)'; }
 var APPS = [
   { name: 'MIS Dashboard', sub: 'Production · delivery · stores', short: 'MIS', color: 'var(--mis)', url: 'https://denuwantvsl-max.github.io/tvs-horana-mis/' },
   { name: 'CMMS', sub: 'Maintenance', short: 'CM', color: 'var(--cmms)', url: 'https://denuwantvsl-max.github.io/tvs-maintenance/' },
@@ -552,7 +566,7 @@ function renderAll() { renderKpis(); renderFeed(); renderTodos(); renderLog(); r
 function renderKpis() {
   var f = state.feed; if (!f) return;
   var html = '';
-  ['mis', 'cmms', 'carder', 'spark', 'gen', 'power'].forEach(function (k) {
+  ['mis', 'cmms', 'carder', 'spark', 'gen', 'power', 'mrm'].forEach(function (k) {
     var s = f.systems[k]; if (!s) return;
     var name = SYS_BY_KEY[k];
     (s.kpis || []).forEach(function (x) {
@@ -561,9 +575,31 @@ function renderKpis() {
     });
   });
   $('kpis').innerHTML = html;
-  renderGen(); renderPower();
+  renderGen(); renderPower(); renderMrm();
 }
 
+/* ---------------- General MRM (monthly plant meeting, Mrm.gs) ---------------- */
+function mrmD(d) { var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(d || ''); return m ? Number(m[3]) + ' ' + ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][m[2] - 1] + ' ' + m[1] : (d || ''); }
+function renderMrm() {
+  var s = state.feed && state.feed.systems.mrm, card = $('mrmCard');
+  if (!s) { card.classList.add('hidden'); return; }
+  card.classList.remove('hidden');
+  var link = 'mrm.html' + (DEMO ? '?demo' : '');
+  if (!s.ok || !s.data) { $('mrmSub').textContent = ''; $('mrmBody').innerHTML = '<div class="empty">' + esc(s.error || 'No data') + '</div>'; return; }
+  var d = s.data, st = d.stats;
+  $('mrmSub').textContent = st.open + ' open · ' + st.overdue + ' overdue';
+  var sevC = { critical: 'var(--bad, #dc2626)', high: '#ea580c', medium: '#ca8a04', low: '#94a3b8' };
+  var html = '<div class="gen-stats"><div><b>' + st.open + '</b><span>open actions</span></div><div><b>' + st.overdue + '</b><span>overdue</span></div>' +
+    '<div><b>' + st.critical + '</b><span>critical</span></div><div><b>' + (st.lastMeeting ? mrmD(st.lastMeeting) : '—') + '</b><span>last meeting' + (st.nextMeeting ? ' · next ' + esc(mrmD(st.nextMeeting)) : '') + '</span></div></div>';
+  html += '<div class="mrm-list">' + (d.open.length ? d.open.map(function (a) {
+    return '<a class="mrm-a" href="' + link + (DEMO ? '&' : '#') + 'act=' + encodeURIComponent(a.id) + '" style="border-left-color:' + (sevC[a.severity] || '#94a3b8') + '">' +
+      '<b>' + esc(a.item) + '</b><span>' + esc(a.owner || '—') + ' · ' + (a.target ? (a.overdue ? '<em>⏰ ' + esc(mrmD(a.target)) + '</em>' : esc(mrmD(a.target))) : 'no date') +
+      (a.carried >= 2 ? ' · carried ×' + a.carried : '') + (a.status === 'In progress' ? ' · in progress' : '') + '</span></a>';
+  }).join('') : '<div class="empty">Nothing pending.</div>') + '</div>';
+  if (st.open > d.open.length) html += '<div class="muted" style="font-size:12.5px;padding:6px 2px">+ ' + (st.open - d.open.length) + ' more on the MRM page</div>';
+  html += '<div class="gen-links" style="padding-top:10px"><a class="small-btn" href="' + link + '">📝 Take a meeting</a><a class="small-btn" href="' + link + (DEMO ? '&' : '#') + 'acts">✅ All actions</a></div>';
+  $('mrmBody').innerHTML = html;
+}
 /* ---------------- plant readings (from CMMS) ---------------- */
 function renderGen() {
   var s = state.feed && state.feed.systems.gen, card = $('genCard');
@@ -627,7 +663,7 @@ function renderFeed() {
   var f = state.feed; if (!f) return;
   var counts = { all: f.items.length };
   f.items.forEach(function (i) { counts[i.sys] = (counts[i.sys] || 0) + 1; });
-  $('filters').innerHTML = ['all', 'mis', 'cmms', 'carder', 'spark', 'gen', 'power'].filter(function (k) { return (k !== 'gen' && k !== 'power') || counts[k]; }).map(function (k) {
+  $('filters').innerHTML = ['all', 'mis', 'cmms', 'carder', 'spark', 'gen', 'power', 'mrm'].filter(function (k) { return (k !== 'gen' && k !== 'power' && k !== 'mrm') || counts[k]; }).map(function (k) {
     return '<button data-f="' + k + '" class="' + (state.filter === k ? 'on' : '') + '">' + (k === 'all' ? 'All' : SYS_BY_KEY[k]) + ' ' + (counts[k] || 0) + '</button>';
   }).join('');
   var items = f.items.filter(function (i) { return state.filter === 'all' || i.sys === state.filter; });
@@ -1008,6 +1044,11 @@ var Demo = (function () {
       cmms: { ok: true, kpis: [{ label: 'Open jobs', value: 11, sub: '2 overdue', tone: 'bad' }, { label: 'PM overdue', value: 4, sub: '3 due today', tone: 'warn' }] },
       carder: { ok: true, kpis: [{ label: 'Attendance yesterday', value: '93.4%', sub: 'Month 94.1%', tone: 'warn' }, { label: 'Headcount', value: 412, sub: 'carder 430', tone: 'warn' }] },
       spark: { ok: true, kpis: [{ label: 'SPARK tests (month)', value: 27, sub: '63% qualified', tone: 'info' }] },
+      mrm: { ok: true, kpis: [{ label: 'MRM actions open', value: 13, sub: '13 overdue · 5 critical', tone: 'bad' }],
+        data: { today: '2026-11-25', link: 'mrm.html?demo', stats: { open: 13, overdue: 13, critical: 5, chronic: 4, done: 0, meetings: 6, lastMeeting: '2025-09-29', nextMeeting: '' },
+          open: [{ id: 'MA-0001', item: 'Water line connection (demo)', owner: 'Malindu / Denuwan', target: '2026-07-22', severity: 'critical', status: 'Open', overdue: true, carried: 4 },
+            { id: 'MA-0005', item: 'Fire extinguisher foam cart covers (demo)', owner: 'Hirushan', target: '2026-07-22', severity: 'critical', status: 'Open', overdue: true, carried: 0 },
+            { id: 'MA-0006', item: 'Washroom drainage repair (demo)', owner: 'Hirushan', target: '2026-07-30', severity: 'high', status: 'In progress', overdue: true, carried: 0 }] } },
       power: { ok: true, kpis: [{ label: 'Electricity Oct 2026', value: 'Rs 1,310k', sub: '23,400 kWh · +48% vs Oct 2025', tone: 'warn' }, { label: 'Cost per kWh', value: 'Rs 56.0', sub: 'Oct 2026 · was 44.1', tone: 'info' }],
         data: { lyLabel: 'Oct 2025', vsLastYear: 48, last: { label: 'Oct 2026', chargeRs: 1310000, kwh: 23400, rsPerKwh: 56, kva: 104, interestRs: 9800 },
           recent: [700, 820, 640, 760, 905, 930, 1010, 880, 1190, 1250, 1220, 0, 0, 1310].map(function (v, i) { return { label: ['Sep 2025', 'Oct 2025', 'Nov 2025', 'Dec 2025', 'Jan 2026', 'Feb 2026', 'Mar 2026', 'Apr 2026', 'May 2026', 'Jun 2026', 'Jul 2026', 'Aug 2026', 'Sep 2026', 'Oct 2026'][i], chargeRs: v * 1000 }; }) } },
@@ -1030,6 +1071,7 @@ var Demo = (function () {
       { sys: 'mis', tone: 'good', title: 'Delivery yesterday: 296 of 293 planned', detail: 'All models on plan.', link: APPS[0].url },
       { sys: 'gen', tone: 'warn', title: 'Compressor loaded only 14% of its running time', detail: 'Running unloaded wastes power: check air leaks and the pressure settings.', link: '#' },
       { sys: 'power', tone: 'warn', title: 'Late payment interest Rs 9,800 on the Oct 2026 electricity bill (demo)', detail: 'Paying each bill within 15 days avoids this.', link: 'energy.html?demo' },
+      { sys: 'mrm', tone: 'bad', title: 'MRM: Water line connection — overdue since 2026-07-22 (demo)', detail: 'Malindu / Denuwan · carried ×4', link: 'mrm.html?demo' },
       { sys: 'spark', tone: 'info', title: '4 candidates tested today', detail: '3 qualified · average 82%', link: APPS[3].url },
       { sys: 'cmms', tone: 'info', title: '3 certificates expiring within 60 days', detail: 'Forklift FL-02 in 12d · Hoist H-05 in 31d · Boiler in 55d', link: APPS[1].url }
     ]
